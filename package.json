@@ -1,0 +1,116 @@
+{
+  "name": "markalldown",
+  "version": "1.0.0",
+  "description": "Markdown reader and Mermaid diagram editor",
+  "author": {
+    "name": "MarkAllDown",
+    "email": "shidas@nvidia.com"
+  },
+  "homepage": "https://github.com/markalldown/markalldown",
+  "main": "main.js",
+  "scripts": {
+    "start": "unset ELECTRON_RUN_AS_NODE && electron .",
+    "build": "electron-builder --linux AppImage",
+    "build:linux": "electron-builder --linux AppImage tar.gz",
+    "build:deb": "electron-builder --linux deb",
+    "build:mac": "electron-builder --mac dmg zip",
+    "build:all": "electron-builder --linux AppImage tar.gz --mac dmg zip",
+    "release": "bash release.sh",
+    "install:linux": "bash install-linux.sh",
+    "setup-hooks": "bash setup-hooks.sh",
+    "format": "bash hooks/format-all.sh",
+    "lint": "eslint main.js preload.js app.js"
+  },
+  "build": {
+    "appId": "com.markalldown.app",
+    "productName": "MarkAllDown",
+    "icon": "icon.png",
+    "npmRebuild": false,
+    "afterPack": "build/adhoc-sign.js",
+    "linux": {
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ],
+      "category": "Utility",
+      "icon": "icon.png",
+      "mimeTypes": [
+        "text/markdown"
+      ],
+      "fileAssociations": [
+        {
+          "ext": "md",
+          "mimeType": "text/markdown",
+          "name": "Markdown"
+        },
+        {
+          "ext": "markdown",
+          "mimeType": "text/markdown",
+          "name": "Markdown"
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.utilities",
+      "icon": "icon.png",
+      "gatekeeperAssess": false,
+      "fileAssociations": [
+        {
+          "ext": "md",
+          "mimeType": "text/markdown",
+          "name": "Markdown",
+          "role": "Editor"
+        },
+        {
+          "ext": "markdown",
+          "mimeType": "text/markdown",
+          "name": "Markdown",
+          "role": "Editor"
+        },
+        {
+          "ext": "txt",
+          "name": "Text",
+          "role": "Editor"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "icon.png"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "app.js",
+      "style.css",
+      "icon.png",
+      "logo.png",
+      "build/entitlements.mac.plist",
+      "node_modules/codemirror/**/*",
+      "node_modules/mermaid/**/*",
+      "node_modules/marked/**/*",
+      "node_modules/katex/**/*"
+    ]
+  },
+  "dependencies": {
+    "codemirror": "^5.65.18",
+    "katex": "^0.16.33",
+    "marked": "^16.4.2",
+    "mermaid": "^11.4.1",
+    "ssh2": "^1.17.0"
+  },
+  "devDependencies": {
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8",
+    "eslint": "^9.0.0",
+    "prettier": "^3.8.1"
+  }
+}

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# commit-msg — enforce Conventional Commits format.
+#   <type>[(<scope>)][!]: <description>
+#   Allowed types: feat fix docs style refactor test chore perf ci build revert
+
+COMMIT_MSG_FILE="$1"
+MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Strip comments and blank lines for validation
+STRIPPED=$(grep -v '^#' "$COMMIT_MSG_FILE" | sed '/^[[:space:]]*$/d')
+FIRST_LINE=$(echo "$STRIPPED" | head -1)
+
+PATTERN='^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\([^)]+\))?!?: .+'
+
+if ! echo "$FIRST_LINE" | grep -qP "$PATTERN" 2>/dev/null; then
+  # Fallback to POSIX ERE if perl-regex not available
+  if ! echo "$FIRST_LINE" | grep -qE "$PATTERN"; then
+    cat >&2 <<EOF
+
+  ERROR  Invalid commit message format.
+
+  Got:      $FIRST_LINE
+
+  Required: <type>[(<scope>)][!]: <description>
+
+  Allowed types:
+    feat      New feature
+    fix       Bug fix
+    docs      Documentation only
+    style     Formatting, no logic change
+    refactor  Code restructuring, no feature/fix
+    test      Adding or fixing tests
+    chore     Build process, tooling, deps
+    perf      Performance improvement
+    ci        CI/CD changes
+    build     Build system changes
+    revert    Revert a previous commit
+
+  Examples:
+    feat: add SSH key rotation
+    fix(auth): handle empty token edge case
+    docs: update README install steps
+    chore!: drop support for Node 16  (! = breaking change)
+
+EOF
+    exit 1
+  fi
+fi
+
+exit 0

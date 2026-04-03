@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# pre-commit — format staged files then lint; auto-installs missing tools.
+set -uo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+# shellcheck source=hooks/install-tools.sh
+# shellcheck disable=SC1091
+source "$REPO_ROOT/hooks/install-tools.sh"
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+[[ -z "$STAGED" ]] && exit 0
+
+PRETTIER_FILES=()
+PY_FILES=()
+SH_FILES=()
+JS_FILES=()
+
+while IFS= read -r file; do
+  [[ -f "$REPO_ROOT/$file" ]] || continue
+  ext="${file##*.}"
+  case "$ext" in
+    js | jsx | ts | tsx | mjs | cjs) PRETTIER_FILES+=("$file"); JS_FILES+=("$file") ;;
+    html | css | scss | sass | json | yml | yaml | md | mdx) PRETTIER_FILES+=("$file") ;;
+    py) PY_FILES+=("$file") ;;
+    sh | bash) SH_FILES+=("$file") ;;
+  esac
+done <<<"$STAGED"
+
+FAILED=0
+
+# ── JS / HTML / CSS / JSON / YAML / Markdown ────────────────────────────────
+if [[ ${#PRETTIER_FILES[@]} -gt 0 ]]; then
+  ensure_prettier
+  PRETTIER_BIN="$REPO_ROOT/node_modules/.bin/prettier"
+  command -v prettier &>/dev/null && PRETTIER_BIN="prettier"
+  for f in "${PRETTIER_FILES[@]}"; do
+    if "$PRETTIER_BIN" --write "$REPO_ROOT/$f" 2>/dev/null; then git add "$REPO_ROOT/$f"; fi || true
+  done
+fi
+
+# ── JS lint with eslint ──────────────────────────────────────────────────────
+if [[ ${#JS_FILES[@]} -gt 0 ]]; then
+  ensure_eslint
+  ESLINT_BIN="$REPO_ROOT/node_modules/.bin/eslint"
+  command -v eslint &>/dev/null && ESLINT_BIN="eslint"
+  if [[ -x "$ESLINT_BIN" ]]; then
+    ABS_JS_FILES=()
+    for f in "${JS_FILES[@]}"; do ABS_JS_FILES+=("$REPO_ROOT/$f"); done
+    if "$ESLINT_BIN" --fix "${ABS_JS_FILES[@]}" 2>/dev/null; then
+      for f in "${JS_FILES[@]}"; do git add "$REPO_ROOT/$f"; done
+    fi || true
+    "$ESLINT_BIN" "${ABS_JS_FILES[@]}" 2>/dev/null || FAILED=1
+  fi
+fi
+
+# ── Python ───────────────────────────────────────────────────────────────────
+if [[ ${#PY_FILES[@]} -gt 0 ]]; then
+  ensure_black; ensure_isort; ensure_ruff
+  for f in "${PY_FILES[@]}"; do
+    abs="$REPO_ROOT/$f"
+    if command -v black &>/dev/null; then black "$abs" 2>/dev/null && git add "$abs" || true; fi
+    if command -v isort &>/dev/null; then isort "$abs" 2>/dev/null && git add "$abs" || true; fi
+    if command -v ruff &>/dev/null; then ruff check --fix "$abs" 2>/dev/null && git add "$abs" || true; fi
+    if command -v ruff &>/dev/null; then ruff check "$abs" || FAILED=1; fi
+  done
+fi
+
+# ── Shell ────────────────────────────────────────────────────────────────────
+if [[ ${#SH_FILES[@]} -gt 0 ]]; then
+  ensure_shfmt; ensure_shellcheck
+  for f in "${SH_FILES[@]}"; do
+    abs="$REPO_ROOT/$f"
+    if command -v shfmt &>/dev/null; then shfmt -w "$abs" 2>/dev/null && git add "$abs" || true; fi
+    if command -v shellcheck &>/dev/null; then shellcheck "$abs" || FAILED=1; fi
+  done
+fi
+
+exit $FAILED

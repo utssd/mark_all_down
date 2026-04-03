@@ -1,0 +1,1017 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MarkAllDown</title>
+
+    <!-- CodeMirror -->
+    <link rel="stylesheet" href="./node_modules/codemirror/lib/codemirror.css" />
+    <link rel="stylesheet" href="./node_modules/codemirror/theme/material-darker.css" />
+
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="./node_modules/katex/dist/katex.min.css" />
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="toolbar">
+      <div class="toolbar-left">
+        <img src="logo.png" alt="MarkAllDown" class="toolbar-logo" />
+
+        <div class="mode-switcher">
+          <button class="mode-tab active" data-mode="reader">Markdown Reader</button>
+          <button class="mode-tab" data-mode="mermaid">Mermaid Editor</button>
+          <button class="mode-tab" data-mode="latex">LaTeX Editor</button>
+          <button class="mode-tab" data-mode="md-editor">Markdown Editor</button>
+          <button class="mode-tab" data-mode="pages">Pages</button>
+        </div>
+
+        <button id="btn-settings" class="btn-icon" title="Settings">
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Mermaid-mode toolbar controls -->
+      <div class="toolbar-center mermaid-mode-only hidden">
+        <label class="theme-select-label" for="diagram-theme">Diagram Theme</label>
+        <select id="diagram-theme" class="theme-select">
+          <option value="default">Default</option>
+          <option value="dark">Dark</option>
+          <option value="forest">Forest</option>
+          <option value="neutral">Neutral</option>
+        </select>
+      </div>
+      <div class="toolbar-right mermaid-mode-only hidden">
+        <button id="btn-open-from-ssh-mermaid" class="btn btn-secondary" title="Open from SSH">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
+            <polyline points="16 6 12 2 8 6" />
+            <line x1="12" y1="2" x2="12" y2="15" />
+          </svg>
+          Open from SSH
+        </button>
+        <input
+          type="text"
+          id="filename-input"
+          class="filename-input"
+          placeholder="diagram name…"
+          spellcheck="false"
+        />
+        <button id="btn-download-svg" class="btn btn-secondary" title="Download SVG">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          SVG
+        </button>
+        <button id="btn-download-png" class="btn btn-primary" title="Download PNG">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          PNG
+        </button>
+      </div>
+
+      <!-- Reader-mode toolbar controls -->
+      <div class="toolbar-right reader-mode-only">
+        <button id="btn-open-from-ssh" class="btn btn-secondary" title="Open from SSH">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
+            <polyline points="16 6 12 2 8 6" />
+            <line x1="12" y1="2" x2="12" y2="15" />
+          </svg>
+          Open from SSH
+        </button>
+        <button id="btn-open-file" class="btn btn-primary" title="Open Markdown file (Ctrl+O)">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" />
+            <polyline points="13 2 13 9 20 9" />
+          </svg>
+          Open File
+        </button>
+      </div>
+
+      <!-- Markdown Editor toolbar controls -->
+      <div class="toolbar-right md-editor-mode-only hidden">
+        <button id="btn-open-from-ssh-md-editor" class="btn btn-secondary" title="Open from SSH">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
+            <polyline points="16 6 12 2 8 6" />
+            <line x1="12" y1="2" x2="12" y2="15" />
+          </svg>
+          Open from SSH
+        </button>
+        <button id="btn-sync-md-editor" class="btn btn-secondary" title="Sync via SSH">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="16 16 12 12 8 16" />
+            <line x1="12" y1="12" x2="12" y2="21" />
+            <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3" />
+          </svg>
+          Sync
+        </button>
+        <button id="btn-save-md-editor" class="btn btn-secondary" title="Save As Markdown (Ctrl+S)">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+          Save MD
+        </button>
+        <button id="btn-md-editor-download-html" class="btn btn-primary" title="Download HTML">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          HTML
+        </button>
+      </div>
+
+      <!-- Pages-mode toolbar controls -->
+      <div class="toolbar-right pages-mode-only hidden" id="pages-toolbar">
+        <button id="btn-pages-sidebar-toggle" class="btn-icon" title="Toggle sidebar">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <button id="btn-pages-back" class="btn-icon" title="Back" disabled>
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <button id="btn-pages-forward" class="btn-icon" title="Forward" disabled>
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+        <span id="pages-breadcrumb" class="pages-breadcrumb"></span>
+        <button id="btn-pages-refresh" class="btn-icon" title="Refresh">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- LaTeX-mode toolbar controls -->
+      <div class="toolbar-right latex-mode-only hidden">
+        <button id="btn-open-from-ssh-latex" class="btn btn-secondary" title="Open from SSH">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
+            <polyline points="16 6 12 2 8 6" />
+            <line x1="12" y1="2" x2="12" y2="15" />
+          </svg>
+          Open from SSH
+        </button>
+        <input
+          type="text"
+          id="latex-filename-input"
+          class="filename-input"
+          placeholder="equation name…"
+          spellcheck="false"
+        />
+        <button id="btn-latex-download-png" class="btn btn-primary" title="Download PNG">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          PNG
+        </button>
+      </div>
+    </header>
+
+    <!-- ═══ Mermaid Editor Mode ═══ -->
+
+    <main class="split-pane mermaid-mode-only hidden" id="mermaid-view">
+      <section class="editor-panel">
+        <div class="panel-header">
+          <span class="panel-tab active">Code</span>
+        </div>
+        <div class="editor-wrapper">
+          <textarea id="code-editor">
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Action 1]
+    B -->|No| D[Action 2]
+    C --> E[End]
+    D --> E</textarea
+          >
+        </div>
+        <div id="error-bar" class="error-bar hidden"></div>
+      </section>
+
+      <section class="preview-panel">
+        <div class="panel-header">
+          <span class="panel-tab active">Preview</span>
+          <div class="zoom-controls">
+            <button id="btn-zoom-in" class="btn-icon" title="Zoom in">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                <line x1="11" y1="8" x2="11" y2="14" />
+                <line x1="8" y1="11" x2="14" y2="11" />
+              </svg>
+            </button>
+            <button id="btn-zoom-out" class="btn-icon" title="Zoom out">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                <line x1="8" y1="11" x2="14" y2="11" />
+              </svg>
+            </button>
+            <button id="btn-zoom-reset" class="btn-icon" title="Reset zoom">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="1 4 1 10 7 10" />
+                <polyline points="23 20 23 14 17 14" />
+                <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="preview-viewport" id="preview-viewport">
+          <div class="preview-content" id="preview"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="sample-bar mermaid-mode-only hidden">
+      <span class="sample-label">Samples</span>
+      <div class="sample-chips">
+        <button class="chip" data-sample="flowchart">Flowchart</button>
+        <button class="chip" data-sample="sequence">Sequence</button>
+        <button class="chip" data-sample="class">Class</button>
+        <button class="chip" data-sample="er">ER Diagram</button>
+        <button class="chip" data-sample="state">State</button>
+        <button class="chip" data-sample="gantt">Gantt</button>
+        <button class="chip" data-sample="pie">Pie</button>
+        <button class="chip" data-sample="mindmap">Mindmap</button>
+        <button class="chip" data-sample="timeline">Timeline</button>
+        <button class="chip" data-sample="gitgraph">Git Graph</button>
+      </div>
+    </footer>
+
+    <!-- ═══ LaTeX Editor Mode ═══ -->
+
+    <main class="split-pane latex-mode-only hidden" id="latex-view">
+      <section class="editor-panel">
+        <div class="panel-header">
+          <span class="panel-tab active">Code</span>
+        </div>
+        <div class="editor-wrapper">
+          <textarea id="latex-editor">E = mc^2</textarea>
+        </div>
+        <div id="latex-error-bar" class="error-bar hidden"></div>
+      </section>
+
+      <section class="preview-panel">
+        <div class="panel-header">
+          <span class="panel-tab active">Preview</span>
+          <div class="zoom-controls">
+            <button id="btn-latex-zoom-in" class="btn-icon" title="Zoom in">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                <line x1="11" y1="8" x2="11" y2="14" />
+                <line x1="8" y1="11" x2="14" y2="11" />
+              </svg>
+            </button>
+            <button id="btn-latex-zoom-out" class="btn-icon" title="Zoom out">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                <line x1="8" y1="11" x2="14" y2="11" />
+              </svg>
+            </button>
+            <button id="btn-latex-zoom-reset" class="btn-icon" title="Reset zoom">
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="1 4 1 10 7 10" />
+                <polyline points="23 20 23 14 17 14" />
+                <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="preview-viewport" id="latex-preview-viewport">
+          <div class="latex-preview-content" id="latex-preview"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="sample-bar latex-mode-only hidden">
+      <span class="sample-label">Samples</span>
+      <div class="sample-chips">
+        <button class="chip" data-latex-sample="quadratic">Quadratic Formula</button>
+        <button class="chip" data-latex-sample="euler">Euler's Identity</button>
+        <button class="chip" data-latex-sample="matrix">Matrix</button>
+        <button class="chip" data-latex-sample="integral">Integral</button>
+        <button class="chip" data-latex-sample="sum">Sum Series</button>
+        <button class="chip" data-latex-sample="maxwell">Maxwell's Equations</button>
+        <button class="chip" data-latex-sample="schrodinger">Schrodinger</button>
+        <button class="chip" data-latex-sample="trig">Trig Identities</button>
+      </div>
+    </footer>
+
+    <!-- ═══ Markdown Editor Mode ═══ -->
+
+    <main class="split-pane md-editor-mode-only hidden" id="md-editor-view">
+      <section class="editor-panel">
+        <div class="panel-header">
+          <span class="panel-tab active">Markdown</span>
+          <button id="btn-md-editor-new-tab" class="btn-icon" title="New tab">
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <button id="btn-md-editor-open-file" class="btn-icon" title="Open file">
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+            </svg>
+          </button>
+        </div>
+        <div class="file-tab-bar" id="md-editor-tab-bar"></div>
+        <div class="editor-wrapper">
+          <textarea id="md-code-editor">
+# Hello, Markdown!
+
+This is a **live preview** editor. Type on the left and see the rendered output on the right.
+
+## Features
+
+- **Bold**, *italic*, and ~~strikethrough~~
+- [Links](https://example.com)
+- Lists, tables, and blockquotes
+- Fenced code blocks with syntax hints
+- Embedded Mermaid diagrams
+
+```mermaid
+graph LR
+    A[Write Markdown] --> B[See Preview]
+```
+
+> Give it a try — edit this text!</textarea
+          >
+        </div>
+      </section>
+
+      <section class="preview-panel">
+        <div class="panel-header">
+          <span class="panel-tab active">Preview</span>
+        </div>
+        <div class="md-editor-preview-viewport" id="md-editor-preview-viewport">
+          <div class="md-editor-preview-wrapper">
+            <div class="markdown-body" id="md-editor-preview"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="sample-bar md-editor-mode-only hidden">
+      <span class="sample-label">Samples</span>
+      <div class="sample-chips">
+        <button class="chip" data-md-sample="headings">Headings</button>
+        <button class="chip" data-md-sample="table">Table</button>
+        <button class="chip" data-md-sample="code">Code Block</button>
+        <button class="chip" data-md-sample="mermaid">Mermaid Diagram</button>
+        <button class="chip" data-md-sample="tasklist">Task List</button>
+        <button class="chip" data-md-sample="blockquote">Blockquote</button>
+        <button class="chip" data-md-sample="image">Image</button>
+      </div>
+    </footer>
+
+    <!-- ═══ Markdown Reader Mode ═══ -->
+
+    <main class="reader-view reader-mode-only" id="reader-view">
+      <div class="reader-tab-header">
+        <div class="file-tab-bar" id="reader-tab-bar"></div>
+      </div>
+      <div class="reader-container">
+        <article class="markdown-body" id="markdown-body">
+          <div class="reader-empty-state">
+            <svg
+              viewBox="0 0 24 24"
+              width="48"
+              height="48"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" />
+              <polyline points="13 2 13 9 20 9" />
+            </svg>
+            <h2>Open a Markdown file</h2>
+            <p>Click <strong>Open File</strong> or press <kbd>Ctrl+O</kbd> to get started</p>
+          </div>
+        </article>
+      </div>
+    </main>
+
+    <!-- ═══ Pages Mode ═══ -->
+
+    <main class="pages-view pages-mode-only hidden" id="pages-view">
+      <!-- Sidebar -->
+      <aside class="pages-sidebar" id="pages-sidebar">
+        <div class="pages-sidebar-header">
+          <span class="pages-sidebar-title" id="pages-sidebar-title">Documents</span>
+        </div>
+        <div class="pages-sidebar-search-wrap">
+          <input
+            type="text"
+            id="pages-sidebar-search"
+            class="pages-sidebar-search"
+            placeholder="Filter…"
+            autocomplete="off"
+          />
+        </div>
+        <nav class="pages-file-tree" id="pages-file-tree"></nav>
+      </aside>
+
+      <!-- Main panel -->
+      <div class="pages-main" id="pages-main">
+        <div class="pages-loading hidden" id="pages-loading"><span>Loading…</span></div>
+
+        <div class="pages-empty-state hidden" id="pages-empty-state">
+          <svg
+            viewBox="0 0 24 24"
+            width="48"
+            height="48"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          <h2>No pages folder configured</h2>
+          <p>Open <strong>Settings → Pages</strong> to set a local or SSH folder.</p>
+        </div>
+
+        <!-- Auto-generated index (card grid) -->
+        <div class="pages-index-view hidden" id="pages-index-view">
+          <div class="pages-index-container">
+            <h1 class="pages-index-heading" id="pages-index-heading">Documents</h1>
+            <div class="pages-index-grid" id="pages-index-grid"></div>
+          </div>
+        </div>
+
+        <!-- File content -->
+        <div class="pages-content-wrap hidden" id="pages-content-wrap">
+          <div class="pages-container">
+            <article class="markdown-body" id="pages-body"></article>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ═══ Settings Modal ═══ -->
+
+    <div id="settings-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">Settings</h3>
+          <button id="btn-settings-close" class="btn-icon modal-close" title="Close">
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <!-- ── Settings Tab Navigation ── -->
+          <div class="settings-tabs">
+            <button class="settings-tab-btn" data-settings-tab="general">General</button>
+            <button class="settings-tab-btn active" data-settings-tab="ssh">SSH</button>
+            <button class="settings-tab-btn" data-settings-tab="pages">Pages</button>
+          </div>
+
+          <!-- ── General Tab ── -->
+          <div id="settings-tab-general" class="settings-tab-panel hidden">
+            <div class="settings-section">
+              <h4 class="settings-section-title">Display</h4>
+              <div class="settings-row">
+                <label class="settings-label" for="general-strip-front-matter"
+                  >Strip front matter</label
+                >
+                <input type="checkbox" id="general-strip-front-matter" checked />
+              </div>
+              <p class="settings-hint-block">
+                Hides YAML (<code>---</code>) and TOML (<code>+++</code>) front matter blocks on
+                display. Useful for files targeting Jekyll, Hugo, or Zola.
+              </p>
+            </div>
+          </div>
+
+          <!-- ── SSH Tab ── -->
+          <div id="settings-tab-ssh" class="settings-tab-panel">
+            <div class="settings-section">
+              <h4 class="settings-section-title">SSH Connection</h4>
+              <div class="settings-row">
+                <label class="settings-label" for="setting-ssh-host">SSH Host</label>
+                <input
+                  type="text"
+                  id="setting-ssh-host"
+                  class="settings-input"
+                  placeholder="e.g. 192.168.1.100"
+                />
+              </div>
+              <div class="settings-row">
+                <label class="settings-label" for="setting-ssh-user">Username</label>
+                <input
+                  type="text"
+                  id="setting-ssh-user"
+                  class="settings-input"
+                  placeholder="e.g. deploy"
+                />
+              </div>
+              <div class="settings-row">
+                <label class="settings-label" for="setting-ssh-port">Port</label>
+                <input
+                  type="number"
+                  id="setting-ssh-port"
+                  class="settings-input settings-input-short"
+                  value="22"
+                  min="1"
+                  max="65535"
+                />
+              </div>
+              <div class="settings-row">
+                <label class="settings-label" for="setting-remote-path">Remote Folder</label>
+                <input
+                  type="text"
+                  id="setting-remote-path"
+                  class="settings-input"
+                  placeholder="e.g. /home/user/documents"
+                />
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <h4 class="settings-section-title">SSH Key Authentication</h4>
+              <div class="settings-row">
+                <span class="settings-label">Key Status</span>
+                <span id="ssh-key-status" class="settings-key-status">Checking...</span>
+              </div>
+              <div id="ssh-key-setup-area" class="settings-key-setup">
+                <div class="settings-row">
+                  <label class="settings-label" for="setting-ssh-password">Password</label>
+                  <input
+                    type="password"
+                    id="setting-ssh-password"
+                    class="settings-input"
+                    placeholder="Enter SSH password"
+                  />
+                </div>
+                <button id="btn-ssh-setup-key" class="btn btn-secondary">
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"
+                    />
+                  </svg>
+                  Setup SSH Key
+                </button>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <h4 class="settings-section-title">Test Connection</h4>
+              <div class="settings-row settings-row-actions">
+                <button id="btn-ssh-test" class="btn btn-secondary">
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                  Test Connection
+                </button>
+                <span id="ssh-test-result" class="settings-test-result"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Pages Tab ── -->
+          <div id="settings-tab-pages" class="settings-tab-panel hidden">
+            <div class="settings-section">
+              <h4 class="settings-section-title">Source</h4>
+              <div class="settings-row">
+                <label class="settings-label">Source Type</label>
+                <div class="pages-source-toggle">
+                  <label class="pages-source-option">
+                    <input
+                      type="radio"
+                      name="pages-source"
+                      id="pages-source-local"
+                      value="local"
+                      checked
+                    />
+                    Local
+                  </label>
+                  <label class="pages-source-option">
+                    <input type="radio" name="pages-source" id="pages-source-ssh" value="ssh" /> SSH
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="settings-section">
+              <h4 class="settings-section-title">Pages Folder</h4>
+              <div class="settings-row" id="pages-local-path-row">
+                <label class="settings-label" for="setting-pages-local-path">Local Path</label>
+                <input
+                  type="text"
+                  id="setting-pages-local-path"
+                  class="settings-input"
+                  placeholder="e.g. /home/user/my-site"
+                />
+              </div>
+              <div class="settings-row hidden" id="pages-remote-path-row">
+                <label class="settings-label" for="setting-pages-remote-path">Remote Path</label>
+                <input
+                  type="text"
+                  id="setting-pages-remote-path"
+                  class="settings-input"
+                  placeholder="e.g. /home/user/my-site"
+                />
+              </div>
+              <p class="settings-hint-block" id="pages-ssh-hint" style="display: none">
+                Uses the SSH connection configured in the SSH tab.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-settings-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="btn-settings-save" class="btn btn-primary">Save Settings</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Open from SSH Modal ═══ -->
+
+    <div id="open-from-ssh-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">Open from SSH</h3>
+          <button id="btn-open-from-ssh-close" class="btn-icon modal-close" title="Close">
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p id="open-from-ssh-error" class="open-from-ssh-error hidden"></p>
+          <p id="open-from-ssh-loading" class="modal-text">Loading remote files…</p>
+          <div id="open-from-ssh-list-wrap" class="open-from-ssh-list-wrap hidden">
+            <label class="settings-label">Select file(s) from remote folder</label>
+            <ul id="open-from-ssh-list" class="open-from-ssh-list"></ul>
+          </div>
+          <div class="settings-row" style="margin-top: 12px">
+            <label class="settings-label" for="open-from-ssh-path">Or enter path</label>
+            <input
+              type="text"
+              id="open-from-ssh-path"
+              class="settings-input"
+              placeholder="e.g. doc.md or notes/readme.md"
+              spellcheck="false"
+            />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-open-from-ssh-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="btn-open-from-ssh-open" class="btn btn-primary">Open</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SSH Password Prompt Modal ═══ -->
+
+    <div id="password-modal" class="modal-overlay hidden">
+      <div class="modal-card modal-card-small">
+        <div class="modal-header">
+          <h3 class="modal-title">SSH Password Required</h3>
+          <button id="btn-password-close" class="btn-icon modal-close" title="Close">
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-text">
+            No SSH key is configured. Enter your password to sync, or set up an SSH key in Settings
+            for passwordless access.
+          </p>
+          <div class="settings-row">
+            <label class="settings-label" for="sync-password-input">Password</label>
+            <input
+              type="password"
+              id="sync-password-input"
+              class="settings-input"
+              placeholder="SSH password"
+            />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-password-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="btn-password-confirm" class="btn btn-primary">Connect & Sync</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Find Bar ═══ -->
+
+    <div id="find-bar" class="find-bar hidden">
+      <div class="find-bar-inner">
+        <input
+          type="text"
+          id="find-input"
+          class="find-input"
+          placeholder="Find…"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <label class="find-option" title="Match case">
+          <input type="checkbox" id="find-case-sensitive" class="find-case-sensitive" /> Aa
+        </label>
+        <span id="find-match-count" class="find-match-count"></span>
+        <button id="btn-find-prev" class="btn-icon find-btn" title="Previous match (Shift+Enter)">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="18 15 12 9 6 15" />
+          </svg>
+        </button>
+        <button id="btn-find-next" class="btn-icon find-btn" title="Next match (Enter)">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        <button id="btn-find-close" class="btn-icon find-btn" title="Close (Escape)">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══ Status Toast ═══ -->
+
+    <div id="status-toast" class="status-toast hidden"></div>
+
+    <!-- CodeMirror JS -->
+    <script src="./node_modules/codemirror/lib/codemirror.js"></script>
+    <script src="./node_modules/codemirror/mode/markdown/markdown.js"></script>
+
+    <!-- CodeMirror stex mode (LaTeX) -->
+    <script src="./node_modules/codemirror/mode/stex/stex.js"></script>
+
+    <!-- Mermaid and KaTeX are loaded lazily on first mode switch -->
+
+    <!-- Marked -->
+    <script src="./node_modules/marked/lib/marked.umd.js"></script>
+
+    <script src="app.js"></script>
+  </body>
+</html>
