@@ -17,8 +17,10 @@ module.exports = async function afterPack(context) {
   const appName = context.packager.appInfo.productFilename;
   const appPath = path.join(context.appOutDir, `${appName}.app`);
 
+  const entitlements = path.join(__dirname, 'entitlements.mac.plist');
+
   try {
-    execSync(`codesign --force --deep --sign - "${appPath}"`, { stdio: 'pipe' });
+    execSync(`codesign --force --deep --sign - --entitlements "${entitlements}" "${appPath}"`, { stdio: 'pipe' });
     console.log(`Ad-hoc signed: ${appPath}`);
   } catch (err) {
     console.warn('Ad-hoc signing failed (non-fatal):', err.message);

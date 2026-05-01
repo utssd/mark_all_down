@@ -1,0 +1,362 @@
+/* LLM Wiki — Tier-2 params panel + custom output.
+ *
+ * All styles are scoped to either:
+ *   #agent-params-llm-wiki           (params panel root)
+ *   .llm-wiki-output                 (custom output container, mounted by ui.js)
+ *
+ * No :root additions. The only net-new color is an amber op-accent used
+ * alongside the app's --accent and --success for op differentiation.
+ *
+ * Consumes app tokens from style.css :root: --bg-*, --text-*, --border,
+ * --accent, --success, --radius, --font-family, --font-mono, --transition.
+ */
+
+/* ───── Scoped op tokens ──────────────────────────────────────────── */
+#agent-params-llm-wiki,
+.llm-wiki-output {
+  --lw-op-ingest: var(--accent);           /* #58a6ff */
+  --lw-op-query:  #d8a657;                 /* amber */
+  --lw-op-lint:   var(--success);          /* #3fb950 */
+  --lw-op-ingest-soft: rgba(88, 166, 255, 0.40);
+  --lw-op-query-soft:  rgba(216, 166, 87, 0.45);
+  --lw-op-lint-soft:   rgba(63, 185, 80, 0.40);
+}
+
+/* ───── Params root ───────────────────────────────────────────────── */
+#agent-params-llm-wiki {
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: var(--font-size, 14px);
+}
+
+/* ───── Tab strip ─────────────────────────────────────────────────── */
+#agent-params-llm-wiki .llm-wiki-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  margin: 0 0 14px;
+}
+
+#agent-params-llm-wiki .llm-wiki-tab {
+  all: unset;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;  /* collapse with .llm-wiki-tabs border */
+  transition: color var(--transition), border-color var(--transition);
+}
+
+#agent-params-llm-wiki .llm-wiki-tab::before {
+  content: attr(data-numeral);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: inherit;
+  opacity: 0.7;
+}
+
+#agent-params-llm-wiki .llm-wiki-tab:hover {
+  color: var(--text-secondary);
+}
+
+#agent-params-llm-wiki .llm-wiki-tab[data-op="ingest"] { --lw-op: var(--lw-op-ingest); }
+#agent-params-llm-wiki .llm-wiki-tab[data-op="query"]  { --lw-op: var(--lw-op-query);  }
+#agent-params-llm-wiki .llm-wiki-tab[data-op="lint"]   { --lw-op: var(--lw-op-lint);   }
+
+#agent-params-llm-wiki .llm-wiki-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--lw-op, var(--accent));
+}
+#agent-params-llm-wiki .llm-wiki-tab.active::before {
+  color: var(--lw-op, var(--accent));
+  opacity: 1;
+}
+
+/* ───── Panels ────────────────────────────────────────────────────── */
+#agent-params-llm-wiki .llm-wiki-panel {
+  display: none;
+}
+#agent-params-llm-wiki .llm-wiki-panel.active {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: lw-fade 160ms ease both;
+}
+@keyframes lw-fade {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Panel op color used by marginalia hint border — set per-panel */
+#agent-params-llm-wiki .llm-wiki-panel[data-panel="ingest"] { --lw-op: var(--lw-op-ingest); --lw-op-soft: var(--lw-op-ingest-soft); }
+#agent-params-llm-wiki .llm-wiki-panel[data-panel="query"]  { --lw-op: var(--lw-op-query);  --lw-op-soft: var(--lw-op-query-soft);  }
+#agent-params-llm-wiki .llm-wiki-panel[data-panel="lint"]   { --lw-op: var(--lw-op-lint);   --lw-op-soft: var(--lw-op-lint-soft);   }
+
+/* ───── Source picker — inline radio row ──────────────────────────── */
+#agent-params-llm-wiki .lw-sourcerow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  padding: 2px 0;
+}
+
+#agent-params-llm-wiki .lw-sourcerow .agents-param-inline-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: color var(--transition);
+}
+#agent-params-llm-wiki .lw-sourcerow .agents-param-inline-label:hover { color: var(--text-primary); }
+#agent-params-llm-wiki .lw-sourcerow .agents-param-inline-label:has(input:checked) { color: var(--text-primary); }
+
+/* ───── Contextual source-input slot ──────────────────────────────── */
+#agent-params-llm-wiki .lw-slot > .lw-field { display: none; }
+#agent-params-llm-wiki:has(input[name="llm-wiki-source"][value="pages"]:checked)  .lw-slot .lw-field-pages  { display: block; }
+#agent-params-llm-wiki:has(input[name="llm-wiki-source"][value="url"]:checked)    .lw-slot .lw-field-url    { display: block; }
+#agent-params-llm-wiki:has(input[name="llm-wiki-source"][value="webdav"]:checked) .lw-slot .lw-field-webdav { display: block; }
+
+/* Pages-source read-only card */
+#agent-params-llm-wiki .lw-pages-card {
+  padding: 10px 12px;
+  background: var(--bg-tertiary);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+#agent-params-llm-wiki .lw-pages-card code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* Address-card: URL & WebDAV Path fields ─────────────────────────── */
+#agent-params-llm-wiki .lw-addr-card {
+  display: block;
+  padding: 10px 14px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--lw-op-soft, var(--border));
+  border-radius: var(--radius);
+  cursor: text;
+  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+}
+#agent-params-llm-wiki .lw-addr-card:hover {
+  background: var(--bg-surface, var(--bg-tertiary));
+}
+#agent-params-llm-wiki .lw-addr-card:focus-within {
+  border-color: var(--lw-op, var(--accent));
+  border-left-color: var(--lw-op, var(--accent));
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--lw-op, var(--accent)) 18%, transparent);
+}
+#agent-params-llm-wiki .lw-addr-label {
+  display: block;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+#agent-params-llm-wiki .lw-addr-card:focus-within .lw-addr-label {
+  color: var(--lw-op, var(--accent));
+}
+#agent-params-llm-wiki .lw-addr-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+#agent-params-llm-wiki .lw-addr-glyph {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1;
+  color: var(--lw-op, var(--accent));
+  opacity: 0.75;
+  transform: translateY(1px);
+}
+#agent-params-llm-wiki .lw-addr-input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+  caret-color: var(--lw-op, var(--accent));
+}
+#agent-params-llm-wiki .lw-addr-input::placeholder {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  opacity: 0.6;
+}
+#agent-params-llm-wiki .lw-addr-input::selection {
+  background: color-mix(in oklab, var(--lw-op, var(--accent)) 35%, transparent);
+}
+
+/* ───── Lint checklist ────────────────────────────────────────────── */
+#agent-params-llm-wiki .lw-lint-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 18px;
+}
+#agent-params-llm-wiki .lw-lint-list li {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+#agent-params-llm-wiki .lw-lint-list li::before {
+  content: "•";
+  color: var(--text-muted);
+  flex: none;
+}
+
+/* ───── Marginalia hint — reuse .agents-param-hint + accent border ── */
+#agent-params-llm-wiki .agents-param-hint.lw-marginalia {
+  border-left: 2px solid var(--lw-op-soft, var(--border));
+  padding: 4px 0 4px 10px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+#agent-params-llm-wiki .agents-param-hint.lw-marginalia code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  padding: 0 5px;
+  border-radius: 3px;
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+ *  Output (mounted by ui.js into a .llm-wiki-output container)
+ * ═══════════════════════════════════════════════════════════════════ */
+
+.llm-wiki-output {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Result header card */
+.llm-wiki-output .lw-result-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.llm-wiki-output .lw-result-card[data-op="ingest"] { --lw-op: var(--lw-op-ingest); }
+.llm-wiki-output .lw-result-card[data-op="query"]  { --lw-op: var(--lw-op-query);  }
+.llm-wiki-output .lw-result-card[data-op="lint"]   { --lw-op: var(--lw-op-lint);   }
+
+.llm-wiki-output .lw-result-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lw-op, var(--accent));
+  flex: none;
+}
+.llm-wiki-output .lw-result-op {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  flex: none;
+}
+.llm-wiki-output .lw-result-op .lw-result-numeral {
+  opacity: 0.7;
+  margin-right: 4px;
+}
+.llm-wiki-output .lw-result-stats {
+  display: flex;
+  gap: 18px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+.llm-wiki-output .lw-result-stats strong {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+/* Markdown body — inherit the app's standard rendering */
+.llm-wiki-output .lw-body {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+.llm-wiki-output .lw-body > :first-child { margin-top: 0; }
+.llm-wiki-output .lw-body > :last-child  { margin-bottom: 0; }
+
+/* Touched-pages section */
+.llm-wiki-output .lw-touched {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.llm-wiki-output .lw-touched-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.llm-wiki-output .lw-touched-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.llm-wiki-output .lw-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+.llm-wiki-output .lw-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+.llm-wiki-output .lw-chip:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border-color: var(--lw-op, var(--accent));
+}

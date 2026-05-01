@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Claude Plan</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    :root {
+      --popup-accent: #d2a8ff;
+      --popup-accent-soft: rgba(210, 168, 255, 0.18);
+      --key-top: #2d333b;
+      --key-bot: #1f242c;
+      --key-border: #3c434d;
+      --key-shadow: #272c33;
+    }
+    html, body {
+      height: 100%; margin: 0; overflow: hidden;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      font-size: var(--font-size);
+      -webkit-font-smoothing: antialiased;
+    }
+    .popup-app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .popup-header {
+      position: relative;
+      display: flex; align-items: center; gap: 14px;
+      padding: 0 18px; height: 48px; flex-shrink: 0;
+      background: linear-gradient(180deg, #1f1a29 0%, var(--bg-secondary) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .popup-header::after {
+      content: '';
+      position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--popup-accent) 18%,
+        var(--popup-accent) 82%,
+        transparent 100%
+      );
+      opacity: .55;
+    }
+    .popup-brand {
+      display: inline-flex; align-items: center; gap: 10px;
+    }
+    .brand-glyph {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px;
+      color: var(--popup-accent);
+      font-size: 14px; line-height: 1;
+      text-shadow: 0 0 12px var(--popup-accent-soft);
+    }
+    .brand-mark {
+      display: inline-flex; align-items: baseline; gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 2.4px;
+    }
+    .brand-primary { color: var(--text-secondary); }
+    .brand-sep { color: var(--border); }
+    .brand-secondary { color: var(--text-primary); }
+
+    .host-badge {
+      font-family: var(--font-mono); font-size: 10.5px;
+      padding: 3px 9px; border-radius: 3px;
+      background: var(--bg-primary); color: var(--text-secondary);
+      border: 1px solid var(--border);
+      white-space: nowrap; letter-spacing: .4px; text-transform: lowercase;
+    }
+    .host-badge.host-badge-remote {
+      color: var(--popup-accent); border-color: var(--popup-accent);
+      background: var(--popup-accent-soft);
+    }
+    .popup-plan-name {
+      font-size: 12px; color: var(--text-muted);
+      font-family: var(--font-mono);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      flex: 1; min-width: 0;
+    }
+    .popup-plan-mtime {
+      font-size: 11px; color: var(--text-muted);
+      font-family: var(--font-mono); white-space: nowrap;
+    }
+
+    .popup-actions { display: flex; align-items: center; gap: 4px; }
+    .popup-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 28px; padding: 0 12px;
+      font-size: 12px; font-family: var(--font-family);
+      background: transparent; color: var(--text-secondary);
+      border: 1px solid var(--border); border-radius: 5px;
+      cursor: pointer;
+      transition: background .12s, color .12s, border-color .12s;
+    }
+    .popup-btn:hover {
+      background: var(--bg-surface); color: var(--text-primary);
+      border-color: var(--popup-accent);
+    }
+    .popup-icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; padding: 0;
+      background: transparent; color: var(--text-muted);
+      border: none; border-radius: 5px; cursor: pointer;
+      transition: background .12s, color .12s;
+    }
+    .popup-icon-btn:hover { background: var(--bg-surface); color: var(--text-primary); }
+    .popup-icon-btn.active { color: var(--popup-accent); background: var(--popup-accent-soft); }
+
+    /* ── Prose body ─────────────────────────────────────────── */
+    .plan-body {
+      flex: 1; overflow: auto;
+      padding: 40px max(32px, calc((100% - 860px) / 2)) 56px;
+      font-size: calc(var(--font-size) + 1px); line-height: 1.72;
+    }
+    .plan-body:focus { outline: none; }
+    .plan-body.empty {
+      display: flex; align-items: center; justify-content: center;
+      text-align: center; padding: 0 24px;
+    }
+    .plan-empty {
+      color: var(--text-muted);
+      font-family: var(--font-family);
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+    }
+    .plan-empty .big { font-size: calc(var(--font-size) + 1px); color: var(--text-secondary); letter-spacing: .2px; }
+    .plan-empty .hint { font-size: var(--font-size); line-height: 1.6; }
+    .plan-empty .hint kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 22px; height: 22px; padding: 0 6px; margin: 0 2px;
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--text-primary);
+      background: linear-gradient(180deg, var(--key-top), var(--key-bot));
+      border: 1px solid var(--key-border);
+      border-bottom: 2px solid var(--key-shadow);
+      border-radius: 4px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 0 rgba(0, 0, 0, 0.35);
+    }
+
+    /* Markdown prose refinements (applied on top of shared style.css .markdown-body) */
+    .plan-body .markdown-body h1 {
+      font-size: 1.73em; margin: 0 0 24px;
+      letter-spacing: -0.01em;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .plan-body .markdown-body h2 {
+      font-size: 1.27em; margin: 32px 0 14px;
+      letter-spacing: -0.005em;
+    }
+    .plan-body .markdown-body h3 { font-size: 1.07em; margin: 24px 0 10px; }
+    .plan-body .markdown-body p { margin: 0 0 14px; }
+    .plan-body .markdown-body ul,
+    .plan-body .markdown-body ol { margin: 0 0 14px; padding-left: 26px; }
+    .plan-body .markdown-body li { margin: 4px 0; }
+    .plan-body .markdown-body code {
+      font-size: 0.87em;
+      background: var(--bg-tertiary);
+      padding: 1px 6px; border-radius: 3px;
+      border: 1px solid var(--border);
+    }
+    .plan-body .markdown-body pre {
+      overflow-x: auto;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--popup-accent);
+      border-radius: 6px;
+      padding: 12px 14px; margin: 0 0 16px;
+      font-size: 0.83em; line-height: 1.55;
+    }
+    .plan-body .markdown-body pre code {
+      background: transparent; border: none; padding: 0;
+      font-size: inherit;
+    }
+    .plan-body .markdown-body blockquote {
+      margin: 0 0 14px;
+      padding: 4px 16px;
+      border-left: 3px solid var(--popup-accent);
+      color: var(--text-secondary);
+      background: var(--popup-accent-soft);
+      border-radius: 0 6px 6px 0;
+    }
+
+    /* ── Footer shortcut rail ─────────────────────────────── */
+    .popup-footer {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 14px; height: 42px; flex-shrink: 0;
+      background: linear-gradient(180deg, var(--bg-secondary) 0%, #12171e 100%);
+      border-top: 1px solid var(--border);
+      font-family: var(--font-family);
+    }
+    .shortcut-rail {
+      display: flex; align-items: center; gap: 0;
+      flex: 1; min-width: 0; overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .shortcut-rail::-webkit-scrollbar { display: none; }
+    .shortcut-group {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 0 14px; white-space: nowrap;
+    }
+    .shortcut-group:first-child { padding-left: 4px; }
+    .shortcut-group + .shortcut-group {
+      border-left: 1px solid var(--border);
+    }
+    .shortcut-group-label {
+      font-size: 9.5px; letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .shortcut-keys { display: inline-flex; align-items: center; gap: 3px; }
+    .popup-footer kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 24px; height: 24px; padding: 0 7px;
+      font-family: var(--font-mono); font-size: 11.5px; font-weight: 500;
+      color: var(--text-primary);
+      background: linear-gradient(180deg, var(--key-top) 0%, var(--key-bot) 100%);
+      border: 1px solid var(--key-border);
+      border-bottom: 2px solid var(--key-shadow);
+      border-radius: 4px;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 1px 0 rgba(0, 0, 0, 0.4);
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+      letter-spacing: 0;
+    }
+    .shortcut-action-label {
+      font-size: 11px; color: var(--text-secondary); letter-spacing: .1px;
+    }
+    #plan-live-status {
+      font-size: 11px; color: var(--text-muted);
+      font-family: var(--font-mono); white-space: nowrap;
+      flex-shrink: 0; padding-left: 10px;
+      border-left: 1px solid var(--border);
+      display: inline-flex; align-items: center;
+    }
+    #plan-live-status:empty { display: none; }
+
+    .plan-live-dot {
+      display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+      background: #7ee787; margin-right: 7px;
+      box-shadow: 0 0 8px rgba(126, 231, 135, 0.6);
+      animation: live-pulse 2s ease-in-out infinite;
+    }
+    .plan-live-dot.stale {
+      background: var(--text-muted); box-shadow: none; animation: none;
+    }
+    @keyframes live-pulse {
+      0%, 100% { box-shadow: 0 0 6px rgba(126, 231, 135, 0.4); }
+      50% { box-shadow: 0 0 12px rgba(126, 231, 135, 0.8); }
+    }
+
+    /* ── Picker modal ─────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(3px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 10;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal-card {
+      width: min(560px, 90vw); max-height: 80vh;
+      display: flex; flex-direction: column;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);
+      overflow: hidden;
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+    }
+    .modal-title {
+      font-size: 11.5px; font-weight: 700; color: var(--text-primary);
+      margin: 0; text-transform: uppercase; letter-spacing: 1.8px;
+      font-family: var(--font-mono);
+    }
+    .modal-body { padding: 14px 18px; overflow-y: auto; }
+    .modal-footer {
+      display: flex; justify-content: flex-end; gap: 8px;
+      padding: 12px 18px; border-top: 1px solid var(--border);
+    }
+    .picker-hint { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
+    .picker-error { font-size: 12px; color: #ff7b72; margin: 4px 0; }
+    .picker-loading { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
+    .picker-list { display: flex; flex-direction: column; gap: 6px; }
+    .picker-item {
+      padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--bg-primary); cursor: pointer;
+      transition: background .12s, border-color .12s;
+    }
+    .picker-item:hover { background: var(--bg-tertiary); }
+    .picker-item.selected {
+      border-color: var(--popup-accent); background: var(--popup-accent-soft);
+    }
+    .picker-item-head {
+      display: flex; justify-content: space-between; gap: 10px;
+      font-size: 12px; color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+    .picker-item-time { color: var(--text-muted); font-size: 11px; flex-shrink: 0; }
+    .picker-item-badge {
+      display: inline-block; margin-left: 6px; padding: 0 5px;
+      font-size: 9px; font-weight: 600; line-height: 14px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--popup-accent); border: 1px solid var(--popup-accent);
+      border-radius: 3px; vertical-align: 1px;
+    }
+    .picker-item-heading { font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
+    .picker-item-snippet {
+      font-size: 11px; color: var(--text-muted);
+      margin-top: 3px; line-height: 1.45;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .btn {
+      padding: 6px 14px; font-size: 12px; border-radius: 5px;
+      border: 1px solid var(--border); cursor: pointer;
+      transition: background .12s, border-color .12s, opacity .12s, filter .12s;
+      font-family: var(--font-family);
+    }
+    .btn-primary {
+      background: var(--popup-accent); color: #1a1225;
+      border-color: var(--popup-accent);
+      font-weight: 600;
+    }
+    .btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+    .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
+    .btn-secondary:hover { background: var(--bg-surface); border-color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div class="popup-app">
+    <header class="popup-header">
+      <span class="popup-brand">
+        <span class="brand-glyph">◆</span>
+        <span class="brand-mark"><span class="brand-primary">CLAUDE</span><span class="brand-sep">·</span><span class="brand-secondary">PLAN</span></span>
+      </span>
+      <span id="host-badge" class="host-badge" title="Active host">local</span>
+      <span id="popup-plan-name" class="popup-plan-name">No plan loaded</span>
+      <span id="popup-plan-mtime" class="popup-plan-mtime"></span>
+      <div class="popup-actions">
+        <button id="btn-switch-plan" class="popup-btn" title="Switch plan">Plans</button>
+        <button id="btn-pin" class="popup-icon-btn" title="Pin on top">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 17v5M9 3h6v4l3 4H6l3-4V3z" />
+          </svg>
+        </button>
+        <button id="btn-close" class="popup-icon-btn" title="Close (Esc)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="plan-body" class="plan-body empty" tabindex="0">
+      <div class="plan-empty">
+        <div class="big">No plan loaded</div>
+        <div class="hint">Press <kbd>p</kbd> or the <kbd>Plans</kbd> button to pick a plan from <code>~/.claude/plans/</code></div>
+      </div>
+    </main>
+
+    <footer class="popup-footer">
+      <div class="shortcut-rail" aria-label="Keyboard shortcuts">
+        <div class="shortcut-group">
+          <span class="shortcut-group-label">Scroll</span>
+          <span class="shortcut-keys"><kbd>↑</kbd><kbd>↓</kbd></span>
+        </div>
+        <div class="shortcut-group">
+          <span class="shortcut-group-label">Page</span>
+          <span class="shortcut-keys"><kbd>PgUp</kbd><kbd>PgDn</kbd></span>
+        </div>
+        <div class="shortcut-group">
+          <span class="shortcut-group-label">Jump</span>
+          <span class="shortcut-keys"><kbd>Home</kbd><kbd>End</kbd></span>
+        </div>
+        <div class="shortcut-group">
+          <span class="shortcut-group-label">Action</span>
+          <span class="shortcut-keys"><kbd>p</kbd></span>
+          <span class="shortcut-action-label">plans</span>
+          <span class="shortcut-keys"><kbd>Esc</kbd></span>
+          <span class="shortcut-action-label">close</span>
+        </div>
+        <div class="shortcut-group">
+          <span class="shortcut-group-label">Picker</span>
+          <span class="shortcut-keys"><kbd>↑</kbd><kbd>↓</kbd></span>
+          <span class="shortcut-action-label">move</span>
+          <span class="shortcut-keys"><kbd>Enter</kbd></span>
+          <span class="shortcut-action-label">open</span>
+        </div>
+      </div>
+      <span id="plan-live-status"></span>
+    </footer>
+  </div>
+
+  <div id="picker-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Pick a plan file</h3>
+        <button id="btn-picker-close" class="popup-icon-btn" title="Close">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p id="picker-hint" class="picker-hint">Plans from ~/.claude/plans/, sorted by most recent.</p>
+        <p id="picker-loading" class="picker-loading hidden">Loading plans…</p>
+        <p id="picker-error" class="picker-error hidden"></p>
+        <div id="picker-list" class="picker-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-picker-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="btn-picker-confirm" class="btn btn-primary" disabled>Open</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./node_modules/marked/lib/marked.umd.js"></script>
+  <script src="plan-renderer.js"></script>
+</body>
+</html>

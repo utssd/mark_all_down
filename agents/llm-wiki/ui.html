@@ -1,0 +1,165 @@
+<!--
+  LLM Wiki agent — Tier-2 params fragment.
+  Injected into #agent-ui-host on startup; shown by selectAgent('llm-wiki').
+  Event handlers live in app.js (llm-wiki branches).
+  Styling lives in ui.css (loaded via entry.ui.css).
+
+  Class / ID / data-attribute contract (consumed by app.js):
+    #agent-params-llm-wiki
+    .llm-wiki-tab[data-op="ingest|query|lint"][.active]
+    .llm-wiki-panel[data-panel="ingest|query|lint"][.active]
+    input[name="llm-wiki-source"][value="pages|url|webdav"]
+    #llm-wiki-url, #llm-wiki-webdav-path,
+    #llm-wiki-question, #llm-wiki-file-answer
+    template#llm-wiki-settings-fragment → #llm-wiki-root, #llm-wiki-max-rounds
+-->
+
+<div class="agents-params" id="agent-params-llm-wiki">
+  <div class="llm-wiki-tabs" role="tablist" aria-label="LLM Wiki operations">
+    <button class="llm-wiki-tab active" data-op="ingest" data-numeral="I"   type="button" role="tab">Ingest</button>
+    <button class="llm-wiki-tab"        data-op="query"  data-numeral="II"  type="button" role="tab">Query</button>
+    <button class="llm-wiki-tab"        data-op="lint"   data-numeral="III" type="button" role="tab">Lint</button>
+  </div>
+
+  <!-- ═══════ Ingest ═══════ -->
+  <div class="llm-wiki-panel active" data-panel="ingest" role="tabpanel">
+    <div class="agents-param-row">
+      <label class="agents-param-label">Source</label>
+      <div class="lw-sourcerow" role="radiogroup" aria-label="Source">
+        <label class="agents-param-inline-label">
+          <input type="radio" name="llm-wiki-source" value="pages" checked />
+          <span>Current Page</span>
+        </label>
+        <label class="agents-param-inline-label">
+          <input type="radio" name="llm-wiki-source" value="url" />
+          <span>Remote URL</span>
+        </label>
+        <label class="agents-param-inline-label">
+          <input type="radio" name="llm-wiki-source" value="webdav" />
+          <span>WebDAV Path</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="lw-slot">
+      <div class="lw-field lw-field-pages">
+        <div class="agents-param-row">
+          <div class="lw-pages-card">
+            The file currently open in <code>Pages</code> will be copied into the
+            wiki's <code>raw/</code> folder.
+          </div>
+        </div>
+      </div>
+
+      <div class="lw-field lw-field-url">
+        <label class="lw-addr-card" for="llm-wiki-url">
+          <span class="lw-addr-label">URL</span>
+          <span class="lw-addr-row">
+            <span class="lw-addr-glyph" aria-hidden="true">↗</span>
+            <input type="url" id="llm-wiki-url" class="lw-addr-input" placeholder="https://example.com/article" spellcheck="false" />
+          </span>
+        </label>
+      </div>
+
+      <div class="lw-field lw-field-webdav">
+        <label class="lw-addr-card" for="llm-wiki-webdav-path">
+          <span class="lw-addr-label">WebDAV Path</span>
+          <span class="lw-addr-row">
+            <span class="lw-addr-glyph" aria-hidden="true">↳</span>
+            <input type="text" id="llm-wiki-webdav-path" class="lw-addr-input" placeholder="/notes/source.md" spellcheck="false" />
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <p class="agents-param-hint lw-marginalia">
+      The chosen source is copied verbatim into <code>&lt;wikiRoot&gt;/raw/</code>,
+      then summarised into entity and concept pages. A typical ingest touches
+      5&ndash;15 pages and consumes 30&ndash;100K tokens across the tool-call loop.
+    </p>
+  </div>
+
+  <!-- ═══════ Query ═══════ -->
+  <div class="llm-wiki-panel" data-panel="query" role="tabpanel">
+    <div class="agents-param-row">
+      <label class="agents-param-label" for="llm-wiki-question">Question</label>
+      <textarea
+        id="llm-wiki-question"
+        class="agents-param-textarea"
+        rows="3"
+        placeholder="What does the wiki say about transformer attention?"
+        spellcheck="false"
+      ></textarea>
+    </div>
+
+    <div class="agents-param-row">
+      <label class="agents-param-inline-label">
+        <input type="checkbox" id="llm-wiki-file-answer" />
+        <span>File the answer back as a wiki page, under <code>pages/answers/</code></span>
+      </label>
+    </div>
+
+    <p class="agents-param-hint lw-marginalia">
+      Searches the wiki index, reads the pages it deems relevant, and returns
+      a prose answer with inline citations. Filing the answer is reversible
+      &mdash; it lands as a new page you can prune later.
+    </p>
+  </div>
+
+  <!-- ═══════ Lint ═══════ -->
+  <div class="llm-wiki-panel" data-panel="lint" role="tabpanel">
+    <div class="agents-param-row">
+      <label class="agents-param-label">Checks</label>
+      <ul class="lw-lint-list" aria-label="Scan checklist">
+        <li>broken cross-references</li>
+        <li>orphaned pages</li>
+        <li>missing entity/concept pages</li>
+        <li>stale or contradicted claims</li>
+        <li>index drift</li>
+        <li>duplicate headings</li>
+      </ul>
+    </div>
+
+    <p class="agents-param-hint lw-marginalia">
+      Health-checks every page in the wiki. Safe fixes are applied in place;
+      anything ambiguous is surfaced in the activity log for your review.
+      No sources in <code>raw/</code> are ever modified.
+    </p>
+  </div>
+</div>
+
+<!--
+  Settings fragment — cloned into #settings-slot-llm-wiki at startup.
+  Plain .settings-section to match every other agent's settings block.
+  IDs (#llm-wiki-root, #llm-wiki-max-rounds) read/written by app.js.
+-->
+<template id="llm-wiki-settings-fragment">
+  <div class="settings-row">
+      <label class="settings-label" for="llm-wiki-root">Wiki Root</label>
+      <input
+        type="text"
+        id="llm-wiki-root"
+        class="settings-input"
+        placeholder="/wiki/"
+        spellcheck="false"
+      />
+    </div>
+    <div class="settings-row">
+      <label class="settings-label" for="llm-wiki-max-rounds">Max Tool Rounds</label>
+      <input
+        type="number"
+        id="llm-wiki-max-rounds"
+        class="settings-input settings-input-short"
+        min="5"
+        max="200"
+        step="1"
+        placeholder="40"
+      />
+    </div>
+    <p class="settings-hint-block">
+      LLM Wiki requires an OpenAI-compatible provider that supports function
+      calls (tool use). The wiki's schema is stored at
+      <code>&lt;Wiki Root&gt;/README.md</code>; edit it there to shape how
+      pages are organized.
+    </p>
+</template>

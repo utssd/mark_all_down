@@ -59,6 +59,7 @@ const browserGlobals = {
   Event: 'readonly',
   KeyboardEvent: 'readonly',
   MouseEvent: 'readonly',
+  Worker: 'readonly',
   // Third-party libs loaded via <script> in index.html
   marked: 'readonly',
   mermaid: 'readonly',
@@ -79,8 +80,8 @@ module.exports = [
     ignores: ['node_modules/**', 'dist/**', '**/*.min.js'],
   },
   {
-    // Main process + preload (Node.js CommonJS)
-    files: ['main.js', 'preload.js'],
+    // Main process + preload + agents (Node.js CommonJS)
+    files: ['main.js', 'preload.js', 'agents/**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'commonjs',

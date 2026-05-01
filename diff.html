@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Claude Diff</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    :root {
+      --popup-accent: var(--accent);
+      --popup-accent-soft: rgba(88, 166, 255, 0.18);
+      --popup-add: #7ee787;
+      --popup-del: #ff7b72;
+      --popup-add-bg: rgba(46, 160, 67, 0.14);
+      --popup-del-bg: rgba(248, 81, 73, 0.14);
+      --key-top: #2d333b;
+      --key-bot: #1f242c;
+      --key-border: #3c434d;
+      --key-shadow: #272c33;
+    }
+    html, body {
+      height: 100%; margin: 0; overflow: hidden;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      font-size: var(--font-size);
+      -webkit-font-smoothing: antialiased;
+    }
+    .popup-app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .popup-header {
+      position: relative;
+      display: flex; align-items: center; gap: 14px;
+      padding: 0 18px; height: 48px; flex-shrink: 0;
+      background: linear-gradient(180deg, #1a2029 0%, var(--bg-secondary) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .popup-header::after {
+      content: '';
+      position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--popup-accent) 18%,
+        var(--popup-accent) 82%,
+        transparent 100%
+      );
+      opacity: .6;
+    }
+    .popup-brand {
+      display: inline-flex; align-items: center; gap: 10px;
+    }
+    .brand-glyph {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px;
+      color: var(--popup-accent);
+      font-size: 14px; line-height: 1;
+      text-shadow: 0 0 12px var(--popup-accent-soft);
+    }
+    .brand-mark {
+      display: inline-flex; align-items: baseline; gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 2.4px;
+    }
+    .brand-primary { color: var(--text-secondary); }
+    .brand-sep { color: var(--border); }
+    .brand-secondary { color: var(--text-primary); }
+
+    .host-badge {
+      font-family: var(--font-mono); font-size: 10.5px;
+      padding: 3px 9px; border-radius: 3px;
+      background: var(--bg-primary); color: var(--text-secondary);
+      border: 1px solid var(--border);
+      white-space: nowrap; letter-spacing: .4px; text-transform: lowercase;
+    }
+    .host-badge.host-badge-remote {
+      color: var(--popup-accent); border-color: var(--popup-accent);
+      background: var(--popup-accent-soft);
+    }
+
+    .popup-session {
+      font-size: 12px; color: var(--text-muted);
+      font-family: var(--font-mono);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      flex: 1; min-width: 0;
+    }
+
+    .popup-stats {
+      font-size: 12px; color: var(--text-secondary);
+      font-family: var(--font-mono); white-space: nowrap;
+      display: inline-flex; gap: 10px;
+    }
+    .popup-stats .add { color: var(--popup-add); }
+    .popup-stats .del { color: var(--popup-del); }
+
+    .popup-actions { display: flex; align-items: center; gap: 4px; }
+    .popup-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 28px; padding: 0 12px;
+      font-size: 12px; font-family: var(--font-family);
+      background: transparent; color: var(--text-secondary);
+      border: 1px solid var(--border); border-radius: 5px;
+      cursor: pointer;
+      transition: background .12s, color .12s, border-color .12s;
+    }
+    .popup-btn:hover {
+      background: var(--bg-surface); color: var(--text-primary);
+      border-color: var(--popup-accent);
+    }
+    .popup-icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; padding: 0;
+      background: transparent; color: var(--text-muted);
+      border: none; border-radius: 5px; cursor: pointer;
+      transition: background .12s, color .12s;
+    }
+    .popup-icon-btn:hover { background: var(--bg-surface); color: var(--text-primary); }
+    .popup-icon-btn.active { color: var(--popup-accent); background: var(--popup-accent-soft); }
+
+    /* ── Tabs ─────────────────────────────────────────────── */
+    .diff-tab-bar {
+      display: flex; align-items: stretch;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto; overflow-y: hidden;
+      flex-shrink: 0; min-height: 38px;
+      scrollbar-width: thin;
+    }
+    .diff-tab-bar::-webkit-scrollbar { height: 4px; }
+    .diff-tab-bar::-webkit-scrollbar-thumb { background: var(--bg-surface); border-radius: 3px; }
+    .diff-tab {
+      position: relative;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 0 16px; font-size: 12px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      border: none; background: transparent;
+      cursor: pointer; white-space: nowrap;
+      transition: color .12s, background .12s;
+    }
+    .diff-tab::after {
+      content: ''; position: absolute; left: 14px; right: 14px; bottom: 0;
+      height: 2px; background: transparent;
+      transition: background .14s;
+    }
+    .diff-tab:hover { color: var(--text-secondary); background: var(--bg-secondary); }
+    .diff-tab.active { color: var(--text-primary); background: var(--bg-primary); }
+    .diff-tab.active::after { background: var(--popup-accent); }
+    .diff-tab-badge {
+      font-size: 9px; padding: 2px 6px; border-radius: 3px;
+      background: var(--popup-add-bg); color: var(--popup-add);
+      text-transform: uppercase; letter-spacing: .5px; font-weight: 600;
+    }
+    .diff-tab-stats { font-size: 11px; color: var(--text-muted); }
+    .diff-tab-stats .add { color: var(--popup-add); }
+    .diff-tab-stats .del { color: var(--popup-del); }
+    .diff-tab.pulse { animation: tab-pulse 1.2s ease-out 1; }
+    @keyframes tab-pulse {
+      0% { background: var(--popup-accent-soft); }
+      100% { background: transparent; }
+    }
+
+    /* ── Body ─────────────────────────────────────────────── */
+    .diff-body {
+      flex: 1; overflow: auto;
+      background: var(--bg-primary);
+      font-family: var(--font-mono);
+      font-size: var(--font-size-mono); line-height: 1.6;
+    }
+    .diff-body:focus { outline: none; }
+    .diff-placeholder {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; color: var(--text-muted);
+      font-family: var(--font-family);
+      gap: 10px; padding: 0 24px; text-align: center;
+    }
+    .diff-placeholder .big { font-size: calc(var(--font-size) + 1px); color: var(--text-secondary); letter-spacing: .2px; }
+    .diff-placeholder .hint { font-size: var(--font-size); line-height: 1.6; }
+    .diff-placeholder .hint kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 22px; height: 22px; padding: 0 6px; margin: 0 2px;
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--text-primary);
+      background: linear-gradient(180deg, var(--key-top), var(--key-bot));
+      border: 1px solid var(--key-border);
+      border-bottom: 2px solid var(--key-shadow);
+      border-radius: 4px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 0 rgba(0, 0, 0, 0.35);
+    }
+
+    .diff-file-header {
+      padding: 12px 18px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 2;
+    }
+    .diff-file-header .path {
+      font-family: var(--font-mono); font-size: var(--font-size-mono);
+      color: var(--text-primary); word-break: break-all;
+    }
+    .diff-file-header .meta {
+      display: flex; gap: 14px; margin-top: 5px;
+      font-size: 11px; color: var(--text-muted); font-family: var(--font-family);
+    }
+    .diff-file-header .meta .status-added {
+      color: var(--popup-add); text-transform: uppercase;
+      letter-spacing: .5px; font-weight: 600;
+    }
+    .diff-file-header .meta .status-modified {
+      color: var(--popup-accent); text-transform: uppercase;
+      letter-spacing: .5px; font-weight: 600;
+    }
+    .diff-file-header .meta .add { color: var(--popup-add); }
+    .diff-file-header .meta .del { color: var(--popup-del); }
+
+    .diff-hunk { margin: 0; border-bottom: 1px solid var(--border); }
+    .diff-hunk-header {
+      padding: 7px 18px; font-size: 11px;
+      background: var(--bg-tertiary); color: var(--text-secondary);
+      font-family: var(--font-mono);
+      display: flex; justify-content: space-between; cursor: pointer;
+      user-select: none;
+    }
+    .diff-hunk-header:hover { background: var(--bg-surface); }
+    .diff-hunk.collapsed .diff-hunk-lines { display: none; }
+    .diff-hunk-lines { padding: 4px 0; }
+    .diff-line {
+      display: block; padding: 0 18px 0 6px;
+      white-space: pre; font-family: var(--font-mono);
+      font-size: var(--font-size-mono); line-height: 1.6;
+      color: var(--text-primary);
+    }
+    .diff-line.add { background: var(--popup-add-bg); color: #d6e9d3; }
+    .diff-line.del { background: var(--popup-del-bg); color: #f0c8c3; }
+    .diff-line.ctx { color: var(--text-secondary); }
+    .diff-line-marker {
+      display: inline-block; width: 14px; color: var(--text-muted);
+      text-align: center; user-select: none;
+    }
+    .diff-line.add .diff-line-marker { color: var(--popup-add); }
+    .diff-line.del .diff-line-marker { color: var(--popup-del); }
+    .diff-hunk.hunk-active { box-shadow: inset 3px 0 0 var(--popup-accent); }
+
+    /* ── Footer shortcut rail ─────────────────────────────── */
+    .popup-footer {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 14px; height: 42px; flex-shrink: 0;
+      background: linear-gradient(180deg, var(--bg-secondary) 0%, #12171e 100%);
+      border-top: 1px solid var(--border);
+      font-family: var(--font-family);
+    }
+    .shortcut-rail {
+      display: flex; align-items: center; gap: 0;
+      flex: 1; min-width: 0; overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .shortcut-rail::-webkit-scrollbar { display: none; }
+    .shortcut-group {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 0 14px; white-space: nowrap;
+    }
+    .shortcut-group:first-child { padding-left: 4px; }
+    .shortcut-group + .shortcut-group {
+      border-left: 1px solid var(--border);
+    }
+    .shortcut-group-label {
+      font-size: 9.5px; letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .shortcut-keys { display: inline-flex; align-items: center; gap: 3px; }
+    .popup-footer kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 24px; height: 24px; padding: 0 7px;
+      font-family: var(--font-mono); font-size: 11.5px; font-weight: 500;
+      color: var(--text-primary);
+      background: linear-gradient(180deg, var(--key-top) 0%, var(--key-bot) 100%);
+      border: 1px solid var(--key-border);
+      border-bottom: 2px solid var(--key-shadow);
+      border-radius: 4px;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 1px 0 rgba(0, 0, 0, 0.4);
+      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+      letter-spacing: 0;
+    }
+    .shortcut-action-label {
+      font-size: 11px; color: var(--text-secondary); letter-spacing: .1px;
+    }
+    #popup-turn-info {
+      font-size: 11px; color: var(--text-muted);
+      font-family: var(--font-mono); white-space: nowrap;
+      flex-shrink: 0; padding-left: 10px;
+      border-left: 1px solid var(--border);
+    }
+    #popup-turn-info:empty { display: none; }
+
+    /* ── Session picker modal ─────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(3px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 10;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal-card {
+      width: min(560px, 90vw); max-height: 80vh;
+      display: flex; flex-direction: column;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);
+      overflow: hidden;
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+    }
+    .modal-title {
+      font-size: 11.5px; font-weight: 700; color: var(--text-primary);
+      margin: 0; text-transform: uppercase; letter-spacing: 1.8px;
+      font-family: var(--font-mono);
+    }
+    .modal-body { padding: 14px 18px; overflow-y: auto; }
+    .modal-footer {
+      display: flex; justify-content: flex-end; gap: 8px;
+      padding: 12px 18px; border-top: 1px solid var(--border);
+    }
+    .picker-hint { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
+    .picker-error { font-size: 12px; color: var(--popup-del); margin: 4px 0; }
+    .picker-loading { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
+    .picker-list { display: flex; flex-direction: column; gap: 6px; }
+    .picker-item {
+      padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--bg-primary); cursor: pointer;
+      transition: background .12s, border-color .12s;
+    }
+    .picker-item:hover { background: var(--bg-tertiary); }
+    .picker-item.selected {
+      border-color: var(--popup-accent); background: var(--popup-accent-soft);
+    }
+    .picker-item-head {
+      display: flex; justify-content: space-between; gap: 10px;
+      font-size: 12px; color: var(--text-primary);
+      font-family: var(--font-mono);
+    }
+    .picker-item-time { color: var(--text-muted); font-size: 11px; flex-shrink: 0; }
+    .picker-item-snippet {
+      font-size: 11px; color: var(--text-secondary);
+      margin-top: 4px; line-height: 1.45;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .picker-item-meta { font-size: 10px; color: var(--text-muted); margin-top: 4px; display: flex; gap: 8px; }
+    .btn {
+      padding: 6px 14px; font-size: 12px; border-radius: 5px;
+      border: 1px solid var(--border); cursor: pointer;
+      transition: background .12s, border-color .12s, opacity .12s, filter .12s;
+      font-family: var(--font-family);
+    }
+    .btn-primary {
+      background: var(--popup-accent); color: #fff;
+      border-color: var(--popup-accent);
+    }
+    .btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+    .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
+    .btn-secondary:hover { background: var(--bg-surface); border-color: var(--text-muted); }
+
+    /* ── Help modal ───────────────────────────────────────── */
+    .help-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(3px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 20;
+    }
+    .help-overlay.hidden { display: none; }
+    .help-card {
+      width: min(460px, 90vw); padding: 22px 24px;
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: 10px; font-family: var(--font-family);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);
+    }
+    .help-card h4 {
+      margin: 0 0 16px; font-size: 11px; color: var(--text-muted);
+      font-family: var(--font-mono);
+      letter-spacing: 1.8px; text-transform: uppercase; font-weight: 700;
+    }
+    .help-card dl {
+      display: grid; grid-template-columns: auto 1fr;
+      gap: 10px 18px; margin: 0; font-size: 12.5px;
+      align-items: center;
+    }
+    .help-card dt {
+      display: inline-flex; gap: 3px;
+    }
+    .help-card dt kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 22px; height: 22px; padding: 0 6px;
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--text-primary);
+      background: linear-gradient(180deg, var(--key-top), var(--key-bot));
+      border: 1px solid var(--key-border); border-bottom: 2px solid var(--key-shadow);
+      border-radius: 4px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 0 rgba(0, 0, 0, 0.35);
+    }
+    .help-card dd { color: var(--text-secondary); margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="popup-app">
+    <header class="popup-header">
+      <span class="popup-brand">
+        <span class="brand-glyph">◆</span>
+        <span class="brand-mark"><span class="brand-primary">CLAUDE</span><span class="brand-sep">·</span><span class="brand-secondary">DIFF</span></span>
+      </span>
+      <span id="host-badge" class="host-badge" title="Active host">local</span>
+      <span id="popup-session" class="popup-session">No session bound</span>
+      <span id="popup-stats" class="popup-stats"></span>
+      <div class="popup-actions">
+        <button id="btn-rebind" class="popup-btn" title="Pick session (b)">Session</button>
+        <button id="btn-pin" class="popup-icon-btn" title="Pin on top">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 17v5M9 3h6v4l3 4H6l3-4V3z" />
+          </svg>
+        </button>
+        <button id="btn-help" class="popup-icon-btn" title="Help (?)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.5 9.5a2.5 2.5 0 1 1 3.8 2.1c-.8.5-1.3 1.1-1.3 2.1" />
+            <circle cx="12" cy="17" r=".5" fill="currentColor" />
+          </svg>
+        </button>
+        <button id="btn-close" class="popup-icon-btn" title="Close (Esc)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <nav id="diff-tabs" class="diff-tab-bar" role="tablist" aria-label="Files changed in latest round"></nav>
+
+    <main id="diff-body" class="diff-body" tabindex="0">
+      <div class="diff-placeholder">
+        <div class="big">Waiting for Claude's next edit…</div>
+        <div class="hint">Press <kbd>b</kbd> or the <kbd>Session</kbd> button to choose a Claude Code session.</div>
+      </div>
+    </main>
+
+    <footer class="popup-footer">
+      <div class="shortcut-rail" aria-label="Keyboard shortcuts">
+        <div class="shortcut-group">
+          <span class="shortcut-group-label">File</span>
+          <span class="shortcut-keys"><kbd>←</kbd><kbd>→</kbd></span>
+        </div>
+        <div class="shortcut-group">
+          <span class="shortcut-group-label">Scroll</span>
+          <span class="shortcut-keys"><kbd>↑</kbd><kbd>↓</kbd></span>
+        </div>
+        <div class="shortcut-group">
+          <span class="shortcut-group-label">Page</span>
+          <span class="shortcut-keys"><kbd>PgUp</kbd><kbd>PgDn</kbd></span>
+        </div>
+        <div class="shortcut-group">
+          <span class="shortcut-group-label">Hunk</span>
+          <span class="shortcut-keys"><kbd>n</kbd><kbd>p</kbd></span>
+        </div>
+        <div class="shortcut-group">
+          <span class="shortcut-group-label">Action</span>
+          <span class="shortcut-keys"><kbd>b</kbd></span>
+          <span class="shortcut-action-label">session</span>
+          <span class="shortcut-keys"><kbd>?</kbd></span>
+          <span class="shortcut-action-label">help</span>
+          <span class="shortcut-keys"><kbd>Esc</kbd></span>
+          <span class="shortcut-action-label">close</span>
+        </div>
+      </div>
+      <span id="popup-turn-info"></span>
+    </footer>
+  </div>
+
+  <div id="picker-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Pick a Claude session</h3>
+        <button id="btn-picker-close" class="popup-icon-btn" title="Close">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p id="picker-hint" class="picker-hint">Most recent Claude Code sessions on this machine.</p>
+        <p id="picker-loading" class="picker-loading hidden">Loading sessions…</p>
+        <p id="picker-error" class="picker-error hidden"></p>
+        <div id="picker-list" class="picker-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-picker-cancel" class="btn btn-secondary">Cancel</button>
+        <button id="btn-picker-confirm" class="btn btn-primary" disabled>Open</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="help-modal" class="help-overlay hidden">
+    <div class="help-card">
+      <h4>Keyboard shortcuts</h4>
+      <dl>
+        <dt><kbd>←</kbd><kbd>→</kbd></dt><dd>Switch file (tab)</dd>
+        <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>Scroll diff body</dd>
+        <dt><kbd>PgUp</kbd><kbd>PgDn</kbd></dt><dd>Page scroll</dd>
+        <dt><kbd>n</kbd><kbd>p</kbd></dt><dd>Next / previous hunk</dd>
+        <dt><kbd>Space</kbd></dt><dd>Collapse / expand hunk</dd>
+        <dt><kbd>b</kbd></dt><dd>Pick session</dd>
+        <dt><kbd>j</kbd><kbd>k</kbd></dt><dd>Picker: move selection</dd>
+        <dt><kbd>Enter</kbd></dt><dd>Picker: open selected</dd>
+        <dt><kbd>?</kbd></dt><dd>Toggle this help</dd>
+        <dt><kbd>Esc</kbd></dt><dd>Close window</dd>
+      </dl>
+    </div>
+  </div>
+
+  <script src="diff-renderer.js"></script>
+</body>
+</html>

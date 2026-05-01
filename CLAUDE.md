@@ -1,67 +1,65 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) and other AI coding assistants working in this repository.
 
 ## Project Overview
 
-MarkAllDown is an Electron desktop app for reading/editing Markdown files, editing Mermaid diagrams, and editing LaTeX equations. It supports SSH-based file sync and remote file opening via SFTP.
+MarkAllDown is an Electron desktop app for reading Markdown / PDF / text, editing Mermaid and LaTeX, running terminal sessions, syncing with WebDAV, backing up to end-to-end encrypted cloud storage, and running LLM-powered agents over a personal library.
+
+## Rules
+
+1. For any frontend/UI change, verify behavior in a browser (Playwright/headless Chrome is fine) before declaring the task done. Dump screenshots/videos under `./artifacts/`.
+2. Save all test artifacts and smoke-test results under `./artifacts/`.
+3. Run `npm run test:unit` and `npm run test:packaging` before concluding any non-trivial change.
 
 ## Commands
 
 ```bash
-# Run in development (Electron)
-npm start
+npm start                # launch Electron app
+python3 serve.py         # browser-based preview at http://localhost:8081
 
-# Browser-based testing (serves at http://localhost:8081)
-python3 serve.py
+npm run test:unit        # node --test over unit tests
+npm run test:packaging   # verify electron-builder config
+npm run lint             # eslint
 
-# Build
-npm run build          # Linux AppImage
-npm run build:linux    # Linux AppImage + tar.gz
-npm run build:deb      # Linux .deb
-npm run build:mac      # macOS dmg + zip
-npm run build:all      # All platforms
-npm run release        # Full cross-platform release (via release.sh)
+npm run build            # Linux AppImage
+npm run build:linux      # Linux AppImage + tar.gz
+npm run build:deb        # Linux .deb
+npm run build:mac        # macOS dmg + zip
+npm run build:all        # all platforms
+npm run release          # full cross-platform release (release.sh)
 
-# Install on Linux after building
-npm run install:linux
-# Or with options:
-bash install-linux.sh --build --system
+npm run install:linux    # install locally after building
 ```
-
-There are no tests or lint commands.
 
 ## Architecture
 
-The app uses the standard Electron three-layer pattern with strict context isolation:
+Standard Electron three-layer model with strict context isolation:
 
-- **`main.js`** (main process): Window management, native dialogs, all file I/O, and SSH/SFTP operations using the `ssh2` library. Exposes functionality to the renderer exclusively through IPC handlers (`ipcMain.handle`).
+- **`main.js`** (main process): windowing, native dialogs, all file I/O, WebDAV (`vendors/webdav.js`), optional SSH tunnel (`vendors/ssh2.js`), local terminal PTY (`node-pty`), cloud backup crypto, file-tracker, agent worker lifecycle. Exposes functionality through `ipcMain.handle`.
+- **`preload.js`** (preload script): security boundary. `contextBridge.exposeInMainWorld` provides a typed `window.electronAPI` to the renderer. No direct Node.js access.
+- **`app.js`** (renderer process): all UI — mode switching, CodeMirror editors, Mermaid/KaTeX rendering, Markdown via `marked`, tabs, find bar, WebDAV browser, Pages, Agents, Settings modal.
+- **`index.html`**: static shell with mode views (reader, editor, pages, agents, terminal) toggled by `app.js`.
 
-- **`preload.js`** (preload script): Security boundary. Uses `contextBridge.exposeInMainWorld` to expose a typed `window.electronAPI` object to the renderer. The renderer cannot access Node.js APIs directly.
+### Agents
 
-- **`app.js`** (renderer process): All UI logic — mode switching, CodeMirror editor instances, Mermaid diagram rendering, KaTeX equation rendering, Markdown parsing via `marked`, tab management, find bar, SSH modals, and settings modal. Communicates with main process only through `window.electronAPI`.
-
-- **`index.html`**: Static shell defining four mode views (reader, mermaid, latex, md-editor) that are shown/hidden by `app.js`. Loads all third-party libraries from `node_modules/` directly.
-
-### IPC Channels
-
-Main→Renderer (push events): `file:opened`, `menu:openFile`, `menu:saveFile`, `menu:openFromSsh`, `menu:find`
-
-Renderer→Main (invoke/reply): `dialog:openFile`, `dialog:saveFile`, `dialog:saveHtml`, `settings:load`, `settings:save`, `ssh:sync`, `ssh:testConnection`, `ssh:copyKey`, `remote:sshListFiles`, `remote:sshReadFile`
-
-### SSH / Settings
-
-- SSH settings are persisted to `<userData>/settings.json` (Electron's `app.getPath('userData')`)
-- SSH keys are auto-generated and stored at `~/.ssh/markalldown_rsa` (RSA 4096)
-- The app enforces a single-instance lock; a second launch passes its file argument to the running instance
+Self-contained folders under `agents/<id>/` with an `AGENT.md` manifest. Auto-discovered at startup. See [`agents/README.md`](agents/README.md) for the full authoring guide and [`README.md`](README.md) § "Build Your Own Agent" for a quick-start.
 
 ### Supported File Types
 
-`.md`, `.markdown`, `.txt` — defined in `SUPPORTED_EXTENSIONS` in `main.js`
+Defined in `SUPPORTED_EXTENSIONS` in `main.js`:
 
-### Third-Party Libraries (bundled from node_modules)
+- **Markdown** (`marked`): `.md`, `.markdown`, `.txt`
+- **PDF** (`pdfjs-dist`): `.pdf`
+- **Plain text** (monospace): `.json`, `.yaml`, `.yml`, `.xml`, `.csv`, `.log`, `.ini`, `.toml`, `.conf`, `.cfg`, `.env`, `.properties`, `.sh`, `.bash`, `.zsh`, `.py`, `.js`, `.ts`, `.html`, `.css`
 
-- **CodeMirror 5** — editor for Mermaid, LaTeX, and Markdown editor modes
-- **Mermaid 11** — diagram rendering in preview pane
-- **KaTeX** — LaTeX math rendering
-- **marked 16** — Markdown→HTML conversion in reader and editor modes
+### Third-Party Libraries
+
+- **CodeMirror 5**, **Mermaid 11**, **KaTeX**, **marked 16**, **pdfjs-dist 5**, **xterm.js 6**, **d3 7**
+- **webdav 4** — vendored to `vendors/webdav.js`
+- **ssh2** — vendored to `vendors/ssh2.js`
+- **node-pty** — native addon
+
+## IPC Channels
+
+See `main.js` `ipcMain.handle(...)` registrations for the authoritative list.

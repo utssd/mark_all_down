@@ -12,7 +12,22 @@
     <!-- KaTeX -->
     <link rel="stylesheet" href="./node_modules/katex/dist/katex.min.css" />
 
+    <!-- xterm.js terminal -->
+    <link rel="stylesheet" href="./node_modules/@xterm/xterm/css/xterm.css" />
+
+    <!-- pdf.js viewer -->
+    <link rel="stylesheet" href="./node_modules/pdfjs-dist/web/pdf_viewer.css" />
+
+    <!-- Google Fonts for Agents "Instrument Panel" settings UI -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500;600&family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap" />
+
     <link rel="stylesheet" href="style.css" />
+
+    <!-- Agent UI styles (each agent folder owns its own CSS) -->
+    <link rel="stylesheet" href="agents/mindmap/ui.css" />
+    <link rel="stylesheet" href="agents/llm-wiki/ui.css" />
   </head>
   <body>
     <header class="toolbar">
@@ -20,11 +35,12 @@
         <img src="logo.png" alt="MarkAllDown" class="toolbar-logo" />
 
         <div class="mode-switcher">
-          <button class="mode-tab active" data-mode="reader">Markdown Reader</button>
-          <button class="mode-tab" data-mode="mermaid">Mermaid Editor</button>
-          <button class="mode-tab" data-mode="latex">LaTeX Editor</button>
-          <button class="mode-tab" data-mode="md-editor">Markdown Editor</button>
+          <button class="mode-tab active" data-mode="reader">Reader</button>
+          <button class="mode-tab" data-mode="editor">Editor</button>
           <button class="mode-tab" data-mode="pages">Pages</button>
+          <button class="mode-tab" data-mode="agents">Agents</button>
+          <button class="mode-tab" data-mode="terminal">Terminal</button>
+          <button class="mode-tab" data-mode="rss">RSS</button>
         </div>
 
         <button id="btn-settings" class="btn-icon" title="Settings">
@@ -46,170 +62,47 @@
         </button>
       </div>
 
-      <!-- Mermaid-mode toolbar controls -->
-      <div class="toolbar-center mermaid-mode-only hidden">
-        <label class="theme-select-label" for="diagram-theme">Diagram Theme</label>
-        <select id="diagram-theme" class="theme-select">
-          <option value="default">Default</option>
-          <option value="dark">Dark</option>
-          <option value="forest">Forest</option>
-          <option value="neutral">Neutral</option>
-        </select>
-      </div>
-      <div class="toolbar-right mermaid-mode-only hidden">
-        <button id="btn-open-from-ssh-mermaid" class="btn btn-secondary" title="Open from SSH">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
-            <polyline points="16 6 12 2 8 6" />
-            <line x1="12" y1="2" x2="12" y2="15" />
-          </svg>
-          Open from SSH
+      <!-- Editor-mode toolbar controls (shared file ops) -->
+      <div class="toolbar-right editor-mode-only hidden">
+        <button id="btn-open-from-webdav-editor" class="btn btn-secondary" title="Open remote">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.657 18c-2.572 0-4.657-2.007-4.657-4.483c0-2.475 2.085-4.482 4.657-4.482c.393-1.762 1.794-3.2 3.675-3.773c1.88-.572 3.956-.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927-1.551 3.487-3.465 3.487h-11.878" /></svg>
+          Open Remote
         </button>
-        <input
-          type="text"
-          id="filename-input"
-          class="filename-input"
-          placeholder="diagram name…"
-          spellcheck="false"
-        />
-        <button id="btn-download-svg" class="btn btn-secondary" title="Download SVG">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          SVG
+        <button id="btn-save-remote-editor" class="btn btn-secondary" title="Save remote">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.657 18c-2.572 0-4.657-2.007-4.657-4.483c0-2.475 2.085-4.482 4.657-4.482c.393-1.762 1.794-3.2 3.675-3.773c1.88-.572 3.956-.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927-1.551 3.487-3.465 3.487h-11.878" /></svg>
+          Save Remote
         </button>
-        <button id="btn-download-png" class="btn btn-primary" title="Download PNG">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          PNG
+        <span class="toolbar-divider"></span>
+        <button id="btn-open-file-editor" class="btn btn-secondary" title="Open file (Ctrl+O)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" /></svg>
+          Open
+        </button>
+        <button id="btn-save-editor" class="btn btn-secondary" title="Save file (Ctrl+S)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+          Save
         </button>
       </div>
 
       <!-- Reader-mode toolbar controls -->
       <div class="toolbar-right reader-mode-only">
-        <button id="btn-open-from-ssh" class="btn btn-secondary" title="Open from SSH">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
-            <polyline points="16 6 12 2 8 6" />
-            <line x1="12" y1="2" x2="12" y2="15" />
-          </svg>
-          Open from SSH
+        <button id="btn-open-remote-reader" class="btn btn-secondary" title="Open remote">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.657 18c-2.572 0-4.657-2.007-4.657-4.483c0-2.475 2.085-4.482 4.657-4.482c.393-1.762 1.794-3.2 3.675-3.773c1.88-.572 3.956-.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927-1.551 3.487-3.465 3.487h-11.878" /></svg>
+          Open Remote
         </button>
-        <button id="btn-open-file" class="btn btn-primary" title="Open Markdown file (Ctrl+O)">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" />
-            <polyline points="13 2 13 9 20 9" />
-          </svg>
-          Open File
+        <span class="toolbar-divider"></span>
+        <button id="btn-open-file" class="btn btn-secondary" title="Open file (Ctrl+O)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" /></svg>
+          Open
         </button>
       </div>
 
-      <!-- Markdown Editor toolbar controls -->
-      <div class="toolbar-right md-editor-mode-only hidden">
-        <button id="btn-open-from-ssh-md-editor" class="btn btn-secondary" title="Open from SSH">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
-            <polyline points="16 6 12 2 8 6" />
-            <line x1="12" y1="2" x2="12" y2="15" />
-          </svg>
-          Open from SSH
-        </button>
-        <button id="btn-sync-md-editor" class="btn btn-secondary" title="Sync via SSH">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <polyline points="16 16 12 12 8 16" />
-            <line x1="12" y1="12" x2="12" y2="21" />
-            <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3" />
-          </svg>
-          Sync
-        </button>
-        <button id="btn-save-md-editor" class="btn btn-secondary" title="Save As Markdown (Ctrl+S)">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-            <polyline points="17 21 17 13 7 13 7 21" />
-            <polyline points="7 3 7 8 15 8" />
-          </svg>
-          Save MD
-        </button>
-        <button id="btn-md-editor-download-html" class="btn btn-primary" title="Download HTML">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          HTML
-        </button>
-      </div>
 
       <!-- Pages-mode toolbar controls -->
       <div class="toolbar-right pages-mode-only hidden" id="pages-toolbar">
+        <button id="btn-pages-choose-folder" class="btn btn-secondary" title="Choose WebDAV folder">
+          Choose Folder
+        </button>
+        <span id="pages-root-indicator" class="pages-root-indicator" title="WebDAV root">Root: /</span>
         <button id="btn-pages-sidebar-toggle" class="btn-icon" title="Toggle sidebar">
           <svg
             viewBox="0 0 24 24"
@@ -265,256 +158,161 @@
         </button>
       </div>
 
-      <!-- LaTeX-mode toolbar controls -->
-      <div class="toolbar-right latex-mode-only hidden">
-        <button id="btn-open-from-ssh-latex" class="btn btn-secondary" title="Open from SSH">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
-            <polyline points="16 6 12 2 8 6" />
-            <line x1="12" y1="2" x2="12" y2="15" />
+
+      <!-- Terminal-mode toolbar controls -->
+      <div class="toolbar-right terminal-mode-only hidden">
+        <button id="btn-terminal-restart" class="btn btn-secondary hidden">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
           </svg>
-          Open from SSH
-        </button>
-        <input
-          type="text"
-          id="latex-filename-input"
-          class="filename-input"
-          placeholder="equation name…"
-          spellcheck="false"
-        />
-        <button id="btn-latex-download-png" class="btn btn-primary" title="Download PNG">
-          <svg
-            viewBox="0 0 24 24"
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          PNG
+          Restart
         </button>
       </div>
     </header>
 
-    <!-- ═══ Mermaid Editor Mode ═══ -->
+    <!-- ═══ Unified Editor Mode ═══ -->
 
-    <main class="split-pane mermaid-mode-only hidden" id="mermaid-view">
-      <section class="editor-panel">
-        <div class="panel-header">
-          <span class="panel-tab active">Code</span>
+    <main class="editor-view editor-mode-only hidden" id="editor-view">
+      <!-- Sub-mode switcher + mode-specific actions -->
+      <div class="editor-submode-bar">
+        <div class="editor-submode-switcher">
+          <button class="editor-submode-tab active" data-editor-submode="md-editor">Markdown</button>
+          <button class="editor-submode-tab" data-editor-submode="mermaid">Mermaid</button>
+          <button class="editor-submode-tab" data-editor-submode="latex">LaTeX</button>
         </div>
-        <div class="editor-wrapper">
-          <textarea id="code-editor">
+        <button id="btn-editor-new" class="btn-icon" title="New file">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
+
+        <!-- Mermaid-specific actions -->
+        <div class="editor-submode-actions mermaid-submode-only hidden">
+          <label class="theme-select-label" for="diagram-theme">Theme</label>
+          <select id="diagram-theme" class="theme-select">
+            <option value="default">Default</option>
+            <option value="dark">Dark</option>
+            <option value="forest">Forest</option>
+            <option value="neutral">Neutral</option>
+          </select>
+          <span class="toolbar-divider"></span>
+          <input type="text" id="filename-input" class="filename-input" placeholder="diagram name…" spellcheck="false" />
+          <button id="btn-download-svg" class="btn btn-secondary" title="Download SVG">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            SVG
+          </button>
+          <button id="btn-download-png" class="btn btn-primary" title="Download PNG">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            PNG
+          </button>
+        </div>
+
+        <!-- LaTeX-specific actions -->
+        <div class="editor-submode-actions latex-submode-only hidden">
+          <input type="text" id="latex-filename-input" class="filename-input" placeholder="equation name…" spellcheck="false" />
+          <button id="btn-latex-download-png" class="btn btn-primary" title="Download PNG">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            PNG
+          </button>
+        </div>
+
+        <!-- Markdown-specific actions -->
+        <div class="editor-submode-actions md-editor-submode-only">
+          <button id="btn-md-editor-download-html" class="btn btn-primary" title="Download HTML">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            HTML
+          </button>
+        </div>
+      </div>
+
+      <!-- Mermaid sub-mode content -->
+      <div class="editor-submode-content mermaid-submode-only hidden" id="mermaid-view">
+        <div class="split-pane">
+          <section class="editor-panel">
+            <div class="editor-wrapper">
+              <textarea id="code-editor">
 graph TD
     A[Start] --> B{Decision}
     B -->|Yes| C[Action 1]
     B -->|No| D[Action 2]
     C --> E[End]
     D --> E</textarea
-          >
-        </div>
-        <div id="error-bar" class="error-bar hidden"></div>
-      </section>
+              >
+            </div>
+            <div id="error-bar" class="error-bar hidden"></div>
+          </section>
 
-      <section class="preview-panel">
-        <div class="panel-header">
-          <span class="panel-tab active">Preview</span>
-          <div class="zoom-controls">
-            <button id="btn-zoom-in" class="btn-icon" title="Zoom in">
-              <svg
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                <line x1="11" y1="8" x2="11" y2="14" />
-                <line x1="8" y1="11" x2="14" y2="11" />
-              </svg>
-            </button>
-            <button id="btn-zoom-out" class="btn-icon" title="Zoom out">
-              <svg
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                <line x1="8" y1="11" x2="14" y2="11" />
-              </svg>
-            </button>
-            <button id="btn-zoom-reset" class="btn-icon" title="Reset zoom">
-              <svg
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <polyline points="1 4 1 10 7 10" />
-                <polyline points="23 20 23 14 17 14" />
-                <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
-              </svg>
-            </button>
-          </div>
+          <section class="preview-panel">
+            <div class="panel-header">
+              <span class="panel-tab active">Preview</span>
+              <div class="zoom-controls">
+                <button id="btn-zoom-in" class="btn-icon" title="Zoom in">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8" x2="11" y2="14" /><line x1="8" y1="11" x2="14" y2="11" />
+                  </svg>
+                </button>
+                <button id="btn-zoom-out" class="btn-icon" title="Zoom out">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="8" y1="11" x2="14" y2="11" />
+                  </svg>
+                </button>
+                <button id="btn-zoom-reset" class="btn-icon" title="Reset zoom">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="1 4 1 10 7 10" /><polyline points="23 20 23 14 17 14" /><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="preview-viewport" id="preview-viewport">
+              <div class="preview-content" id="preview"></div>
+            </div>
+          </section>
         </div>
-        <div class="preview-viewport" id="preview-viewport">
-          <div class="preview-content" id="preview"></div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="sample-bar mermaid-mode-only hidden">
-      <span class="sample-label">Samples</span>
-      <div class="sample-chips">
-        <button class="chip" data-sample="flowchart">Flowchart</button>
-        <button class="chip" data-sample="sequence">Sequence</button>
-        <button class="chip" data-sample="class">Class</button>
-        <button class="chip" data-sample="er">ER Diagram</button>
-        <button class="chip" data-sample="state">State</button>
-        <button class="chip" data-sample="gantt">Gantt</button>
-        <button class="chip" data-sample="pie">Pie</button>
-        <button class="chip" data-sample="mindmap">Mindmap</button>
-        <button class="chip" data-sample="timeline">Timeline</button>
-        <button class="chip" data-sample="gitgraph">Git Graph</button>
       </div>
-    </footer>
 
-    <!-- ═══ LaTeX Editor Mode ═══ -->
+      <!-- LaTeX sub-mode content -->
+      <div class="editor-submode-content latex-submode-only hidden" id="latex-view">
+        <div class="split-pane">
+          <section class="editor-panel">
+            <div class="editor-wrapper">
+              <textarea id="latex-editor">E = mc^2</textarea>
+            </div>
+            <div id="latex-error-bar" class="error-bar hidden"></div>
+          </section>
 
-    <main class="split-pane latex-mode-only hidden" id="latex-view">
-      <section class="editor-panel">
-        <div class="panel-header">
-          <span class="panel-tab active">Code</span>
+          <section class="preview-panel">
+            <div class="panel-header">
+              <span class="panel-tab active">Preview</span>
+              <div class="zoom-controls">
+                <button id="btn-latex-zoom-in" class="btn-icon" title="Zoom in">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8" x2="11" y2="14" /><line x1="8" y1="11" x2="14" y2="11" />
+                  </svg>
+                </button>
+                <button id="btn-latex-zoom-out" class="btn-icon" title="Zoom out">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="8" y1="11" x2="14" y2="11" />
+                  </svg>
+                </button>
+                <button id="btn-latex-zoom-reset" class="btn-icon" title="Reset zoom">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="1 4 1 10 7 10" /><polyline points="23 20 23 14 17 14" /><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="preview-viewport" id="latex-preview-viewport">
+              <div class="latex-preview-content" id="latex-preview"></div>
+            </div>
+          </section>
         </div>
-        <div class="editor-wrapper">
-          <textarea id="latex-editor">E = mc^2</textarea>
-        </div>
-        <div id="latex-error-bar" class="error-bar hidden"></div>
-      </section>
-
-      <section class="preview-panel">
-        <div class="panel-header">
-          <span class="panel-tab active">Preview</span>
-          <div class="zoom-controls">
-            <button id="btn-latex-zoom-in" class="btn-icon" title="Zoom in">
-              <svg
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                <line x1="11" y1="8" x2="11" y2="14" />
-                <line x1="8" y1="11" x2="14" y2="11" />
-              </svg>
-            </button>
-            <button id="btn-latex-zoom-out" class="btn-icon" title="Zoom out">
-              <svg
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                <line x1="8" y1="11" x2="14" y2="11" />
-              </svg>
-            </button>
-            <button id="btn-latex-zoom-reset" class="btn-icon" title="Reset zoom">
-              <svg
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <polyline points="1 4 1 10 7 10" />
-                <polyline points="23 20 23 14 17 14" />
-                <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div class="preview-viewport" id="latex-preview-viewport">
-          <div class="latex-preview-content" id="latex-preview"></div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="sample-bar latex-mode-only hidden">
-      <span class="sample-label">Samples</span>
-      <div class="sample-chips">
-        <button class="chip" data-latex-sample="quadratic">Quadratic Formula</button>
-        <button class="chip" data-latex-sample="euler">Euler's Identity</button>
-        <button class="chip" data-latex-sample="matrix">Matrix</button>
-        <button class="chip" data-latex-sample="integral">Integral</button>
-        <button class="chip" data-latex-sample="sum">Sum Series</button>
-        <button class="chip" data-latex-sample="maxwell">Maxwell's Equations</button>
-        <button class="chip" data-latex-sample="schrodinger">Schrodinger</button>
-        <button class="chip" data-latex-sample="trig">Trig Identities</button>
       </div>
-    </footer>
 
-    <!-- ═══ Markdown Editor Mode ═══ -->
-
-    <main class="split-pane md-editor-mode-only hidden" id="md-editor-view">
-      <section class="editor-panel">
-        <div class="panel-header">
-          <span class="panel-tab active">Markdown</span>
-          <button id="btn-md-editor-new-tab" class="btn-icon" title="New tab">
-            <svg
-              viewBox="0 0 24 24"
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-          <button id="btn-md-editor-open-file" class="btn-icon" title="Open file">
-            <svg
-              viewBox="0 0 24 24"
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
-            </svg>
-          </button>
-        </div>
-        <div class="file-tab-bar" id="md-editor-tab-bar"></div>
-        <div class="editor-wrapper">
-          <textarea id="md-code-editor">
+      <!-- Markdown Editor sub-mode content -->
+      <div class="editor-submode-content md-editor-submode-only" id="md-editor-view">
+        <div class="split-pane">
+          <section class="editor-panel">
+            <div class="file-tab-bar" id="md-editor-tab-bar"></div>
+            <div class="editor-wrapper">
+              <textarea id="md-code-editor">
 # Hello, Markdown!
 
 This is a **live preview** editor. Type on the left and see the rendered output on the right.
@@ -533,40 +331,72 @@ graph LR
 ```
 
 > Give it a try — edit this text!</textarea
-          >
-        </div>
-      </section>
+              >
+            </div>
+          </section>
 
-      <section class="preview-panel">
-        <div class="panel-header">
-          <span class="panel-tab active">Preview</span>
+          <section class="preview-panel">
+            <div class="panel-header">
+              <span class="panel-tab active">Preview</span>
+            </div>
+            <div class="md-editor-preview-viewport" id="md-editor-preview-viewport">
+              <div class="md-editor-preview-wrapper">
+                <div class="markdown-body" id="md-editor-preview"></div>
+              </div>
+            </div>
+          </section>
         </div>
-        <div class="md-editor-preview-viewport" id="md-editor-preview-viewport">
-          <div class="md-editor-preview-wrapper">
-            <div class="markdown-body" id="md-editor-preview"></div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="sample-bar md-editor-mode-only hidden">
-      <span class="sample-label">Samples</span>
-      <div class="sample-chips">
-        <button class="chip" data-md-sample="headings">Headings</button>
-        <button class="chip" data-md-sample="table">Table</button>
-        <button class="chip" data-md-sample="code">Code Block</button>
-        <button class="chip" data-md-sample="mermaid">Mermaid Diagram</button>
-        <button class="chip" data-md-sample="tasklist">Task List</button>
-        <button class="chip" data-md-sample="blockquote">Blockquote</button>
-        <button class="chip" data-md-sample="image">Image</button>
       </div>
-    </footer>
+
+      <!-- Sample bars (one per sub-mode) -->
+      <footer class="sample-bar mermaid-submode-only hidden">
+        <span class="sample-label">Samples</span>
+        <div class="sample-chips">
+          <button class="chip" data-sample="flowchart">Flowchart</button>
+          <button class="chip" data-sample="sequence">Sequence</button>
+          <button class="chip" data-sample="class">Class</button>
+          <button class="chip" data-sample="er">ER Diagram</button>
+          <button class="chip" data-sample="state">State</button>
+          <button class="chip" data-sample="gantt">Gantt</button>
+          <button class="chip" data-sample="pie">Pie</button>
+          <button class="chip" data-sample="mindmap">Mind Map</button>
+          <button class="chip" data-sample="timeline">Timeline</button>
+          <button class="chip" data-sample="gitgraph">Git Graph</button>
+        </div>
+      </footer>
+      <footer class="sample-bar latex-submode-only hidden">
+        <span class="sample-label">Samples</span>
+        <div class="sample-chips">
+          <button class="chip" data-latex-sample="quadratic">Quadratic Formula</button>
+          <button class="chip" data-latex-sample="euler">Euler's Identity</button>
+          <button class="chip" data-latex-sample="matrix">Matrix</button>
+          <button class="chip" data-latex-sample="integral">Integral</button>
+          <button class="chip" data-latex-sample="sum">Sum Series</button>
+          <button class="chip" data-latex-sample="maxwell">Maxwell's Equations</button>
+          <button class="chip" data-latex-sample="schrodinger">Schrodinger</button>
+          <button class="chip" data-latex-sample="trig">Trig Identities</button>
+        </div>
+      </footer>
+      <footer class="sample-bar md-editor-submode-only">
+        <span class="sample-label">Samples</span>
+        <div class="sample-chips">
+          <button class="chip" data-md-sample="headings">Headings</button>
+          <button class="chip" data-md-sample="table">Table</button>
+          <button class="chip" data-md-sample="code">Code Block</button>
+          <button class="chip" data-md-sample="mermaid">Mermaid Diagram</button>
+          <button class="chip" data-md-sample="tasklist">Task List</button>
+          <button class="chip" data-md-sample="blockquote">Blockquote</button>
+          <button class="chip" data-md-sample="image">Image</button>
+        </div>
+      </footer>
+    </main>
 
     <!-- ═══ Markdown Reader Mode ═══ -->
 
     <main class="reader-view reader-mode-only" id="reader-view">
       <div class="reader-tab-header">
         <div class="file-tab-bar" id="reader-tab-bar"></div>
+        <div class="reader-toolbar-actions"></div>
       </div>
       <div class="reader-container">
         <article class="markdown-body" id="markdown-body">
@@ -582,8 +412,8 @@ graph LR
               <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" />
               <polyline points="13 2 13 9 20 9" />
             </svg>
-            <h2>Open a Markdown file</h2>
-            <p>Click <strong>Open File</strong> or press <kbd>Ctrl+O</kbd> to get started</p>
+            <h2>Open a file</h2>
+            <p>Click <strong>Open</strong> or press <kbd id="kbd-open-hint">Ctrl+O</kbd> to get started</p>
           </div>
         </article>
       </div>
@@ -625,8 +455,8 @@ graph LR
             <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
             <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
-          <h2>No pages folder configured</h2>
-          <p>Open <strong>Settings → Pages</strong> to set a local or SSH folder.</p>
+          <h2 id="pages-empty-title">No pages to show</h2>
+          <p id="pages-empty-description">Choose a WebDAV folder to browse Markdown files.</p>
         </div>
 
         <!-- Auto-generated index (card grid) -->
@@ -646,12 +476,260 @@ graph LR
       </div>
     </main>
 
+    <!-- ═══ Agents Mode ═══ -->
+
+    <main class="agents-view agents-mode-only hidden" id="agents-view">
+      <!-- Left sidebar: agent list -->
+      <aside class="agents-sidebar">
+        <div class="agents-sidebar-header">
+          <span class="panel-tab active">Agents</span>
+        </div>
+        <ul class="agents-list" id="agents-list"></ul>
+      </aside>
+
+      <!-- Right workspace -->
+      <section class="agents-workspace">
+        <!-- Empty state -->
+        <div class="agents-empty-state" id="agents-empty-state">
+          <svg
+            viewBox="0 0 24 24"
+            width="48"
+            height="48"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4l3 3" />
+          </svg>
+          <h2>Select an agent</h2>
+          <p>Choose an agent from the sidebar to get started.</p>
+        </div>
+
+        <!-- Workspace panel (shown when agent selected) -->
+        <div class="agents-workspace-panel hidden" id="agents-workspace-panel">
+          <!-- Header -->
+          <div class="agents-workspace-header">
+            <div class="agents-workspace-title-row">
+              <h2 class="agents-workspace-title" id="agent-panel-name"></h2>
+              <span class="agent-status-badge" id="agent-status-badge">idle</span>
+            </div>
+            <p class="agents-workspace-description" id="agent-panel-description"></p>
+          </div>
+
+          <!-- Warning banners -->
+          <div class="agents-warning hidden" id="agents-ssh-warning">
+            <svg
+              viewBox="0 0 24 24"
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            WebDAV not configured. Open <strong>Settings → General</strong> to add a server URL.
+          </div>
+          <div class="agents-warning hidden" id="agents-llm-warning">
+            <svg
+              viewBox="0 0 24 24"
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            LLM not configured on the remote. Open <strong>Settings → LLM</strong> to configure.
+          </div>
+
+          <!-- Auto-form params (Tier 0: rendered from manifest.params) -->
+          <div class="agents-params hidden" id="agent-params-auto"></div>
+
+          <!-- Agent UI host (Tier 2: agent-owned DOM mounted here) -->
+          <div class="agent-ui-host" id="agent-ui-host"></div>
+
+          <!-- Action buttons -->
+          <div class="agents-actions">
+            <button id="btn-agent-run" class="btn btn-primary">
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+              Run
+            </button>
+            <button id="btn-agent-cancel" class="btn btn-secondary hidden">
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+              </svg>
+              Cancel
+            </button>
+          </div>
+
+          <!-- Activity log -->
+          <div class="agents-log-header">
+            <span class="panel-tab">Activity Log</span>
+            <button id="btn-agent-clear-log" class="btn-icon" title="Clear log">
+              <svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14H6L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4h6v2" />
+              </svg>
+            </button>
+          </div>
+          <div class="agents-log" id="agents-log"></div>
+
+          <!-- Output (hidden until a run completes) -->
+          <div class="agents-output-header hidden" id="agents-output-header">
+            <span class="panel-tab">Output</span>
+            <button id="btn-agent-copy-output" class="btn btn-secondary">Copy</button>
+            <button id="btn-agent-open-in-pages" class="btn btn-secondary hidden">Open in Pages</button>
+            <button id="btn-agent-open-in-editor" class="btn btn-secondary">Open in Editor</button>
+          </div>
+          <div class="agents-output hidden" id="agents-output">
+            <pre class="agents-output-content" id="agents-output-content"></pre>
+          </div>
+        </div>
+        <!-- /agents-workspace-panel -->
+      </section>
+    </main>
+
+    <!-- ═══ Terminal Mode ═══ -->
+
+    <main class="terminal-view terminal-mode-only hidden" id="terminal-view">
+      <!-- Sidebar -->
+      <aside class="terminal-sidebar" id="terminal-sidebar">
+        <div class="terminal-sidebar-header">
+          <span class="terminal-sidebar-title">Terminals</span>
+          <button class="btn-icon" id="btn-terminal-new-tab" title="New terminal (Ctrl+Shift+T)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+        </div>
+        <nav class="terminal-tab-list" id="terminal-tab-list"></nav>
+      </aside>
+      <!-- Terminal main area (per-tab containers inserted dynamically) -->
+      <div class="terminal-main" id="terminal-main"></div>
+    </main>
+
+    <!-- ═══ RSS Reader Mode ═══ -->
+
+    <main class="rss-view rss-mode-only hidden" id="rss-view">
+      <aside class="rss-sidebar" id="rss-sidebar">
+        <div class="rss-sidebar-header">
+          <span class="rss-sidebar-title">Feeds</span>
+          <button class="btn-icon" id="btn-rss-refresh" title="Refresh all feeds">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+          </button>
+        </div>
+        <!-- SMART-RSS: begin filter pills -->
+        <div class="rss-filter-pills">
+          <button class="rss-filter-pill active" data-rss-filter="all">All</button>
+          <button class="rss-filter-pill" data-rss-filter="unread">Unread</button>
+          <button class="rss-filter-pill" data-rss-filter="starred">Starred</button>
+          <button class="rss-filter-pill smart-pill" data-rss-sort="smart" title="Personalized ranking">Smart</button>
+        </div>
+        <!-- SMART-RSS: end filter pills -->
+        <!-- SMART-RSS: begin interests -->
+        <section class="rss-interests" id="rss-interests">
+          <div class="rss-interests-header">
+            <span class="rss-interests-title">Interests</span>
+            <button class="btn-icon" id="btn-rss-interest-add" title="Add interest">+</button>
+          </div>
+          <form class="rss-interests-form hidden" id="rss-interests-form">
+            <input type="text" id="rss-interest-input" placeholder="e.g. rust async, fermentation" maxlength="80"/>
+            <button type="submit" class="btn-primary">Add</button>
+          </form>
+          <ul class="rss-interests-list" id="rss-interests-list"></ul>
+        </section>
+        <!-- SMART-RSS: end interests -->
+        <nav class="rss-feed-list" id="rss-feed-list"></nav>
+        <div class="rss-sidebar-footer">
+          <span id="rss-last-refresh" class="rss-last-refresh"></span>
+        </div>
+      </aside>
+      <div class="rss-main" id="rss-main">
+        <div class="rss-main-header">
+          <div class="rss-main-title" id="rss-main-title">All feeds</div>
+          <div class="rss-main-meta" id="rss-main-meta"></div>
+        </div>
+        <div class="rss-card-grid" id="rss-card-grid"></div>
+        <div class="rss-empty-state hidden" id="rss-empty-state">
+          <p class="rss-empty-title">No feeds yet</p>
+          <p class="rss-empty-hint">Add a feed URL in Settings → RSS to get started.</p>
+        </div>
+        <div class="rss-reader-overlay hidden" id="rss-reader-overlay">
+          <div class="rss-reader-sheet">
+            <div class="rss-reader-progress" aria-hidden="true"><span id="rss-reader-progress-bar"></span></div>
+            <div class="rss-reader-toolbar">
+              <button class="btn-icon rss-reader-back" id="btn-rss-reader-back" title="Back to feed (Esc)">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+                </svg>
+                <span>Back</span>
+              </button>
+              <div class="rss-reader-toolbar-caption" id="rss-reader-toolbar-caption"></div>
+              <div class="rss-reader-toolbar-actions">
+                <!-- SMART-RSS: begin thumbs -->
+                <button class="rss-thumbs-up" id="btn-rss-reader-thumbsup" title="More like this"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v10H4V10h3zm3 10h7a2 2 0 0 0 2-1.7l1.3-7A2 2 0 0 0 18.3 9H14V5a3 3 0 0 0-3-3l-1 7v11z"/></svg></button>
+                <button class="rss-thumbs-down" id="btn-rss-reader-thumbsdown" title="Less like this"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M17 14V4h3v10h-3zm-3-10H7a2 2 0 0 0-2 1.7L3.7 12.7A2 2 0 0 0 5.7 15H10v4a3 3 0 0 0 3 3l1-7V4z"/></svg></button>
+                <!-- SMART-RSS: end thumbs -->
+                <button class="btn-icon" id="btn-rss-reader-star" title="Star">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                </button>
+                <button class="btn-icon" id="btn-rss-reader-open" title="Open in browser">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <article class="rss-reader-content" id="rss-reader-content"></article>
+          </div>
+        </div>
+      </div>
+    </main>
+
     <!-- ═══ Settings Modal ═══ -->
 
     <div id="settings-modal" class="modal-overlay hidden">
-      <div class="modal-card">
+      <div class="modal-card settings-modal-card">
         <div class="modal-header">
-          <h3 class="modal-title">Settings</h3>
+          <h3 class="modal-title"><span class="settings-title-dot"></span>Settings</h3>
           <button id="btn-settings-close" class="btn-icon modal-close" title="Close">
             <svg
               viewBox="0 0 24 24"
@@ -666,18 +744,320 @@ graph LR
             </svg>
           </button>
         </div>
-        <div class="modal-body">
-          <!-- ── Settings Tab Navigation ── -->
-          <div class="settings-tabs">
-            <button class="settings-tab-btn" data-settings-tab="general">General</button>
-            <button class="settings-tab-btn active" data-settings-tab="ssh">SSH</button>
-            <button class="settings-tab-btn" data-settings-tab="pages">Pages</button>
-          </div>
+        <div class="modal-body settings-shell">
+          <!-- ── Sidebar ── -->
+          <nav class="settings-sidebar">
+            <div class="settings-nav-group" data-group="general">
+              <div class="settings-nav-heading">General</div>
+              <button class="settings-nav-item" data-settings-target="remote-storage">
+                <span class="settings-nav-dot"></span><span class="settings-nav-label">Remote Storage</span>
+              </button>
+              <button class="settings-nav-item" data-settings-target="display">
+                <span class="settings-nav-dot"></span><span class="settings-nav-label">Display</span>
+              </button>
+            </div>
+            <div class="settings-nav-group" data-group="agents">
+              <div class="settings-nav-heading-row">
+                <div class="settings-nav-heading">Agents</div>
+                <button id="btn-agents-reload" class="settings-nav-reload" title="Reload agents">⟳</button>
+              </div>
+              <button class="settings-nav-item" data-settings-target="agents" data-agent-id="__global__">
+                <span class="settings-nav-dot"></span><span class="settings-nav-label">Global Defaults</span>
+              </button>
+              <div id="agents-settings-rail" class="settings-nav-agents"></div>
+            </div>
+            <div class="settings-nav-group" data-group="rss">
+              <div class="settings-nav-heading">RSS</div>
+              <button class="settings-nav-item" data-settings-target="rss-feeds">
+                <span class="settings-nav-dot"></span><span class="settings-nav-label">Feeds</span>
+              </button>
+              <button class="settings-nav-item" data-settings-target="rss-sync">
+                <span class="settings-nav-dot"></span><span class="settings-nav-label">Refresh &amp; Sync</span>
+              </button>
+            </div>
+            <div class="settings-nav-group" data-group="reference">
+              <div class="settings-nav-heading">Reference</div>
+              <button class="settings-nav-item" data-settings-target="shortcuts">
+                <span class="settings-nav-dot"></span><span class="settings-nav-label">Shortcuts</span>
+              </button>
+            </div>
+          </nav>
 
-          <!-- ── General Tab ── -->
-          <div id="settings-tab-general" class="settings-tab-panel hidden">
-            <div class="settings-section">
-              <h4 class="settings-section-title">Display</h4>
+          <!-- ── Pane ── -->
+          <section class="settings-pane">
+
+          <!-- Panel: Remote Storage -->
+          <div class="settings-panel" data-settings-panel="remote-storage">
+            <div class="settings-pane-header">
+              <div class="settings-pane-crumb"><span>General</span><span class="sep">/</span><span>Remote Storage</span></div>
+              <h2 class="settings-pane-title">Remote Storage</h2>
+              <p class="settings-pane-subtitle">Where Open and Save reach when your files live off this machine.</p>
+            </div>
+            <div class="settings-section settings-general-card">
+              <h4 class="settings-section-title">Provider</h4>
+              <div class="settings-row">
+                <label class="settings-label" for="general-remote-provider">Provider</label>
+                <select id="general-remote-provider" class="settings-input">
+                  <option value="webdav">WebDAV</option>
+                  <option value="cloud">Public Cloud Service</option>
+                </select>
+              </div>
+              <p class="settings-hint-block">
+                <code>Open</code> and <code>Save</code> use the selected remote provider across
+                the app.
+              </p>
+            </div>
+
+            <div id="general-remote-webdav" class="settings-provider-panel settings-general-provider">
+              <div class="settings-section settings-general-card">
+                <h4 class="settings-section-title">WebDAV</h4>
+                <div class="settings-row">
+                  <label class="settings-label" for="setting-webdav-url">Server URL</label>
+                  <input
+                    type="url"
+                    id="setting-webdav-url"
+                    class="settings-input"
+                    placeholder="https://nas.example.com/dav/documents"
+                  />
+                </div>
+                <div class="settings-row">
+                  <label class="settings-label" for="setting-webdav-username">Username</label>
+                  <input
+                    type="text"
+                    id="setting-webdav-username"
+                    class="settings-input"
+                    placeholder="alice"
+                  />
+                </div>
+                <div class="settings-row">
+                  <label class="settings-label" for="setting-webdav-password">Password</label>
+                  <input type="password" id="setting-webdav-password" class="settings-input" />
+                </div>
+              </div>
+
+              <div class="settings-section settings-general-card">
+                <h4 class="settings-section-title">SSH Tunnel</h4>
+                <div class="settings-row">
+                  <label class="settings-label" for="setting-webdav-ssh-enabled"
+                    >Enable SSH Tunnel</label
+                  >
+                  <input type="checkbox" id="setting-webdav-ssh-enabled" />
+                </div>
+                <div id="webdav-ssh-fields" class="hidden">
+                  <div class="settings-row">
+                    <label class="settings-label" for="setting-webdav-ssh-host">SSH Host</label>
+                    <input
+                      type="text"
+                      id="setting-webdav-ssh-host"
+                      class="settings-input"
+                      placeholder="nas.example.com"
+                    />
+                  </div>
+                  <div class="settings-row">
+                    <label class="settings-label" for="setting-webdav-ssh-port">SSH Port</label>
+                    <input
+                      type="number"
+                      id="setting-webdav-ssh-port"
+                      class="settings-input settings-input-short"
+                      value="22"
+                    />
+                  </div>
+                  <div class="settings-row">
+                    <label class="settings-label" for="setting-webdav-ssh-username"
+                      >SSH Username</label
+                    >
+                    <input
+                      type="text"
+                      id="setting-webdav-ssh-username"
+                      class="settings-input"
+                      placeholder="alice"
+                    />
+                  </div>
+                  <div class="settings-row">
+                    <label class="settings-label" for="setting-webdav-ssh-key">Private Key</label>
+                    <input
+                      type="text"
+                      id="setting-webdav-ssh-key"
+                      class="settings-input"
+                      placeholder="~/.ssh/id_rsa"
+                      readonly
+                    />
+                    <button id="btn-webdav-ssh-browse-key" class="btn btn-secondary">Browse</button>
+                  </div>
+                  <div class="settings-row">
+                    <label class="settings-label" for="setting-webdav-ssh-passphrase"
+                      >Key Passphrase</label
+                    >
+                    <input
+                      type="password"
+                      id="setting-webdav-ssh-passphrase"
+                      class="settings-input"
+                      placeholder="(optional)"
+                    />
+                  </div>
+                </div>
+                <p class="settings-hint-block">
+                  Route WebDAV traffic through an SSH tunnel. The Server URL above should be the
+                  address as seen from the SSH host (e.g.,
+                  <code>http://localhost:5005/dav</code>).
+                </p>
+              </div>
+
+              <div class="settings-section settings-general-card">
+                <h4 class="settings-section-title">Test Connection</h4>
+                <div class="settings-row settings-row-actions">
+                  <button id="btn-webdav-test" class="btn btn-secondary">
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="16"
+                      height="16"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                    Test Connection
+                  </button>
+                  <span id="webdav-test-result" class="settings-test-result"></span>
+                </div>
+                <p class="settings-hint-block">
+                  Use this for any WebDAV-compatible server, including a NAS, Nextcloud, or your
+                  own hosted endpoint.
+                </p>
+              </div>
+            </div>
+
+            <div
+              id="general-remote-cloud"
+              class="settings-provider-panel settings-general-provider hidden"
+            >
+              <div class="settings-section settings-general-card">
+                <h4 class="settings-section-title">Public Cloud Service</h4>
+                <div class="settings-row">
+                  <label class="settings-label" for="setting-cloud-api-url">API Base URL</label>
+                  <input
+                    type="text"
+                    id="setting-cloud-api-url"
+                    class="settings-input"
+                    placeholder="https://api.example.com"
+                    spellcheck="false"
+                  />
+                </div>
+                <p class="settings-hint-block">
+                  This option targets the future hosted MarkAllDown cloud service.
+                </p>
+              </div>
+
+              <div class="settings-section settings-general-card">
+                <h4 class="settings-section-title">Account</h4>
+                <div id="cloud-auth-status" class="settings-hint-block">Not logged in</div>
+                <div class="settings-row">
+                  <label class="settings-label" for="setting-cloud-email">Email</label>
+                  <input
+                    type="email"
+                    id="setting-cloud-email"
+                    class="settings-input"
+                    placeholder="you@example.com"
+                    spellcheck="false"
+                  />
+                </div>
+                <div class="settings-row">
+                  <label class="settings-label" for="setting-cloud-password">Password</label>
+                  <input
+                    type="password"
+                    id="setting-cloud-password"
+                    class="settings-input"
+                    placeholder="Not saved — used for login only"
+                  />
+                </div>
+                <div class="settings-row settings-row-actions">
+                  <button id="btn-cloud-register" class="btn btn-secondary">Register</button>
+                  <button id="btn-cloud-login" class="btn btn-secondary">Login</button>
+                  <button id="btn-cloud-logout" class="btn btn-secondary hidden">Logout</button>
+                </div>
+              </div>
+
+              <div class="settings-section settings-general-card">
+                <h4 class="settings-section-title">Connection</h4>
+                <div class="settings-row">
+                  <button id="btn-cloud-test" class="btn btn-secondary">Test Connection</button>
+                  <span id="cloud-test-result" class="settings-test-result"></span>
+                </div>
+              </div>
+
+              <div class="settings-section settings-general-card">
+                <h4 class="settings-section-title">Change Password</h4>
+                <div class="settings-row">
+                  <label class="settings-label" for="setting-cloud-old-password"
+                    >Old Password</label
+                  >
+                  <input
+                    type="password"
+                    id="setting-cloud-old-password"
+                    class="settings-input"
+                    placeholder="Current password"
+                  />
+                </div>
+                <div class="settings-row">
+                  <label class="settings-label" for="setting-cloud-new-password"
+                    >New Password</label
+                  >
+                  <input
+                    type="password"
+                    id="setting-cloud-new-password"
+                    class="settings-input"
+                    placeholder="New password"
+                  />
+                </div>
+                <div class="settings-row settings-row-actions">
+                  <button id="btn-cloud-change-password" class="btn btn-secondary">
+                    Change Password
+                  </button>
+                  <span id="cloud-change-password-result" class="settings-test-result"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section settings-general-card">
+              <h4 class="settings-section-title">Cloud Agents</h4>
+              <div class="settings-row">
+                <label class="settings-label" for="setting-cloud-agents-base-url">Base URL</label>
+                <input
+                  type="text"
+                  id="setting-cloud-agents-base-url"
+                  class="settings-input"
+                  placeholder="http://localhost:8787"
+                  spellcheck="false"
+                />
+              </div>
+              <div class="settings-row">
+                <label class="settings-label" for="setting-cloud-agents-token">Bearer Token</label>
+                <input
+                  type="password"
+                  id="setting-cloud-agents-token"
+                  class="settings-input"
+                  placeholder="leave blank for local dev"
+                />
+              </div>
+              <p class="settings-hint-block">
+                Where cloud-based agents run. The bearer token is sent as an
+                <code>Authorization</code> header on every request — blank is fine for local dev.
+              </p>
+            </div>
+
+          </div><!-- /remote-storage panel -->
+
+          <!-- Panel: Display -->
+          <div class="settings-panel hidden" data-settings-panel="display">
+            <div class="settings-pane-header">
+              <div class="settings-pane-crumb"><span>General</span><span class="sep">/</span><span>Display</span></div>
+              <h2 class="settings-pane-title">Display</h2>
+              <p class="settings-pane-subtitle">How text looks when you read and edit in this app.</p>
+            </div>
+            <div class="settings-section settings-general-card">
+              <h4 class="settings-section-title">Appearance</h4>
               <div class="settings-row">
                 <label class="settings-label" for="general-strip-front-matter"
                   >Strip front matter</label
@@ -688,172 +1068,477 @@ graph LR
                 Hides YAML (<code>---</code>) and TOML (<code>+++</code>) front matter blocks on
                 display. Useful for files targeting Jekyll, Hugo, or Zola.
               </p>
-            </div>
-          </div>
-
-          <!-- ── SSH Tab ── -->
-          <div id="settings-tab-ssh" class="settings-tab-panel">
-            <div class="settings-section">
-              <h4 class="settings-section-title">SSH Connection</h4>
               <div class="settings-row">
-                <label class="settings-label" for="setting-ssh-host">SSH Host</label>
-                <input
-                  type="text"
-                  id="setting-ssh-host"
+                <label class="settings-label" for="general-font-family">Font</label>
+                <select
+                  id="general-font-family"
                   class="settings-input"
-                  placeholder="e.g. 192.168.1.100"
-                />
+                >
+                  <option value="">System Default</option>
+                </select>
               </div>
               <div class="settings-row">
-                <label class="settings-label" for="setting-ssh-user">Username</label>
-                <input
-                  type="text"
-                  id="setting-ssh-user"
-                  class="settings-input"
-                  placeholder="e.g. deploy"
-                />
-              </div>
-              <div class="settings-row">
-                <label class="settings-label" for="setting-ssh-port">Port</label>
+                <label class="settings-label" for="general-font-size">Font size</label>
                 <input
                   type="number"
-                  id="setting-ssh-port"
+                  id="general-font-size"
                   class="settings-input settings-input-short"
-                  value="22"
-                  min="1"
-                  max="65535"
+                  min="10"
+                  max="24"
+                  value="14"
                 />
               </div>
               <div class="settings-row">
-                <label class="settings-label" for="setting-remote-path">Remote Folder</label>
-                <input
-                  type="text"
-                  id="setting-remote-path"
-                  class="settings-input"
-                  placeholder="e.g. /home/user/documents"
-                />
+                <label class="settings-label" for="general-ui-scale">UI scale</label>
+                <select id="general-ui-scale" class="settings-input settings-input-short">
+                  <option value="0.85">85%</option>
+                  <option value="0.9">90%</option>
+                  <option value="0.95">95%</option>
+                  <option value="1" selected>100%</option>
+                  <option value="1.05">105%</option>
+                  <option value="1.1">110%</option>
+                  <option value="1.15">115%</option>
+                  <option value="1.2">120%</option>
+                  <option value="1.3">130%</option>
+                </select>
               </div>
             </div>
+          </div><!-- /display panel -->
 
-            <div class="settings-section">
-              <h4 class="settings-section-title">SSH Key Authentication</h4>
-              <div class="settings-row">
-                <span class="settings-label">Key Status</span>
-                <span id="ssh-key-status" class="settings-key-status">Checking...</span>
-              </div>
-              <div id="ssh-key-setup-area" class="settings-key-setup">
-                <div class="settings-row">
-                  <label class="settings-label" for="setting-ssh-password">Password</label>
-                  <input
-                    type="password"
-                    id="setting-ssh-password"
-                    class="settings-input"
-                    placeholder="Enter SSH password"
-                  />
+          <!-- Panel: Agents -->
+          <div class="settings-panel hidden" data-settings-panel="agents">
+            <div class="settings-pane-header">
+              <div class="settings-pane-crumb"><span>Agents</span><span class="sep">/</span><span id="agents-settings-crumb-name">Global Defaults</span></div>
+              <h2 class="settings-pane-title" id="agents-settings-pane-title">Global Defaults</h2>
+              <p class="settings-pane-subtitle" id="agents-settings-pane-subtitle">Connection and sampling defaults used by all agents unless overridden.</p>
+            </div>
+            <div class="settings-agents-body">
+                <div class="settings-section hidden" id="agents-settings-params-card">
+                  <h4 class="settings-section-title">Parameters</h4>
+                  <!-- Per-agent settings slots are created dynamically as
+                       `<div id="settings-slot-<agentId>">` by injectAgentUi. -->
                 </div>
-                <button id="btn-ssh-setup-key" class="btn btn-secondary">
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="16"
-                    height="16"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"
-                    />
-                  </svg>
-                  Setup SSH Key
-                </button>
-              </div>
-            </div>
-
-            <div class="settings-section">
-              <h4 class="settings-section-title">Test Connection</h4>
-              <div class="settings-row settings-row-actions">
-                <button id="btn-ssh-test" class="btn btn-secondary">
-                  <svg
-                    viewBox="0 0 24 24"
-                    width="16"
-                    height="16"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-                    <polyline points="22 4 12 14.01 9 11.01" />
-                  </svg>
-                  Test Connection
-                </button>
-                <span id="ssh-test-result" class="settings-test-result"></span>
-              </div>
-            </div>
-          </div>
-
-          <!-- ── Pages Tab ── -->
-          <div id="settings-tab-pages" class="settings-tab-panel hidden">
-            <div class="settings-section">
-              <h4 class="settings-section-title">Source</h4>
-              <div class="settings-row">
-                <label class="settings-label">Source Type</label>
-                <div class="pages-source-toggle">
-                  <label class="pages-source-option">
+                <details class="settings-section settings-disclosure" id="agents-settings-llm-card" open>
+                  <summary class="settings-disclosure-summary">
+                    <span class="settings-section-title" id="agents-settings-llm-title">LLM Configuration</span>
+                    <span class="settings-disclosure-chevron" aria-hidden="true">
+                      <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 4.5l3 3 3-3"/>
+                      </svg>
+                    </span>
+                  </summary>
+                  <div class="settings-disclosure-body">
+                  <div class="settings-row">
+                    <label class="settings-label" for="llm-provider">API Type</label>
+                    <select id="llm-provider" class="settings-input">
+                      <option value="">(inherit)</option>
+                      <option value="openai">OpenAI-compatible</option>
+                      <option value="anthropic">Anthropic</option>
+                    </select>
+                  </div>
+                  <div class="settings-row">
+                    <label class="settings-label" for="llm-base-url">Base URL</label>
                     <input
-                      type="radio"
-                      name="pages-source"
-                      id="pages-source-local"
-                      value="local"
-                      checked
+                      type="text"
+                      id="llm-base-url"
+                      class="settings-input"
+                      placeholder="https://api.openai.com/v1"
+                      spellcheck="false"
                     />
-                    Local
-                  </label>
-                  <label class="pages-source-option">
-                    <input type="radio" name="pages-source" id="pages-source-ssh" value="ssh" /> SSH
-                  </label>
-                </div>
-              </div>
+                  </div>
+                  <div class="settings-row llm-presets-row">
+                    <span class="settings-label">Presets</span>
+                    <div class="llm-preset-chips">
+                      <button class="chip" data-llm-preset="openai">OpenAI</button>
+                      <button class="chip" data-llm-preset="anthropic">Anthropic</button>
+                      <button class="chip" data-llm-preset="ollama">Ollama</button>
+                      <button class="chip" data-llm-preset="vllm">vLLM</button>
+                      <button class="chip" data-llm-preset="llamacpp">llama.cpp</button>
+                    </div>
+                  </div>
+                  <div class="settings-row">
+                    <label class="settings-label" for="llm-api-key">API Key</label>
+                    <input
+                      type="password"
+                      id="llm-api-key"
+                      class="settings-input"
+                      placeholder="sk-… (leave empty for local)"
+                    />
+                  </div>
+                  <div class="settings-row settings-row-align-start">
+                    <label class="settings-label" for="llm-model">Model</label>
+                    <div id="llm-model-combobox" class="settings-combobox">
+                      <input
+                        type="text"
+                        id="llm-model"
+                        class="settings-input settings-combobox-input"
+                        placeholder="Type a model or fetch available models"
+                        spellcheck="false"
+                        autocomplete="off"
+                      />
+                      <div id="llm-model-menu" class="settings-combobox-menu hidden"></div>
+                      <div id="llm-model-hint" class="settings-combobox-hint">
+                        Fetch models to browse suggestions, or type a model name manually.
+                      </div>
+                    </div>
+                    <button
+                      id="btn-fetch-models"
+                      class="btn btn-secondary"
+                      title="Fetch model list from endpoint"
+                      style="flex-shrink: 0"
+                    >
+                      Fetch
+                    </button>
+                  </div>
+                  <div class="settings-row settings-row-actions">
+                    <span class="settings-label">Connection</span>
+                    <button id="btn-test-llm" class="btn btn-secondary">Test Request</button>
+                    <span id="llm-test-result" class="settings-test-result"></span>
+                  </div>
+                  <div class="settings-row">
+                    <label class="settings-label" for="llm-temperature">Temperature</label>
+                    <input
+                      type="range"
+                      id="llm-temperature"
+                      class="settings-slider"
+                      min="0"
+                      max="2"
+                      step="0.01"
+                      value="0.7"
+                    />
+                    <span id="llm-temperature-val" class="slider-value">0.70</span>
+                  </div>
+                  <div class="settings-row">
+                    <label class="settings-label" for="llm-max-tokens">Max Tokens</label>
+                    <input
+                      type="number"
+                      id="llm-max-tokens"
+                      class="settings-input settings-input-short"
+                      min="1"
+                      max="128000"
+                      value="128000"
+                    />
+                  </div>
+                  <div class="settings-row">
+                    <label class="settings-label" for="llm-top-p">Top-p</label>
+                    <input
+                      type="range"
+                      id="llm-top-p"
+                      class="settings-slider"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value="1"
+                    />
+                    <span id="llm-top-p-val" class="slider-value">1.00</span>
+                  </div>
+                  <p class="settings-hint-block" id="agents-settings-llm-hint">
+                    Agent prompts are built into the app. These settings control connection,
+                    model selection, and sampling behavior.
+                  </p>
+                  <p class="settings-hint-block hidden" id="agents-settings-override-hint">
+                    Leave any field blank to inherit from Global Defaults.
+                  </p>
+                  </div>
+                </details>
             </div>
-            <div class="settings-section">
-              <h4 class="settings-section-title">Pages Folder</h4>
-              <div class="settings-row" id="pages-local-path-row">
-                <label class="settings-label" for="setting-pages-local-path">Local Path</label>
+          </div><!-- /agents panel -->
+
+          <!-- Panel: RSS Feeds -->
+          <div class="settings-panel hidden" data-settings-panel="rss-feeds">
+            <div class="settings-pane-header">
+              <div class="settings-pane-crumb"><span>RSS</span><span class="sep">/</span><span>Feeds</span></div>
+              <h2 class="settings-pane-title">Feeds</h2>
+              <p class="settings-pane-subtitle">Subscriptions and feed-list portability in one place.</p>
+            </div>
+            <div class="settings-section settings-general-card">
+              <h4 class="settings-section-title">Subscriptions</h4>
+              <div id="rss-feeds-table" class="rss-feeds-table"></div>
+              <div class="settings-row rss-feed-add-row">
+                <input
+                  type="url"
+                  id="rss-feed-new-url"
+                  class="settings-input"
+                  placeholder="https://example.com/feed.xml"
+                  spellcheck="false"
+                />
                 <input
                   type="text"
-                  id="setting-pages-local-path"
-                  class="settings-input"
-                  placeholder="e.g. /home/user/my-site"
+                  id="rss-feed-new-title"
+                  class="settings-input settings-input-short"
+                  placeholder="Title (optional)"
                 />
+                <button id="btn-rss-feed-add" class="btn btn-secondary">Add</button>
               </div>
-              <div class="settings-row hidden" id="pages-remote-path-row">
-                <label class="settings-label" for="setting-pages-remote-path">Remote Path</label>
-                <input
-                  type="text"
-                  id="setting-pages-remote-path"
-                  class="settings-input"
-                  placeholder="e.g. /home/user/my-site"
-                />
-              </div>
-              <p class="settings-hint-block" id="pages-ssh-hint" style="display: none">
-                Uses the SSH connection configured in the SSH tab.
+              <p class="settings-hint-block">
+                Add RSS 2.0, RSS 1.0, or Atom feed URLs. The title is auto-filled
+                from the feed if left blank.
               </p>
             </div>
-          </div>
-        </div>
+
+            <div class="settings-section settings-general-card">
+              <h4 class="settings-section-title">Import / Export</h4>
+              <div class="settings-row settings-row-actions">
+                <button id="btn-rss-opml-import" class="btn btn-secondary">Import OPML…</button>
+                <button id="btn-rss-opml-export" class="btn btn-secondary">Export OPML</button>
+                <span id="rss-opml-status" class="settings-test-result"></span>
+              </div>
+              <p class="settings-hint-block">
+                OPML is the standard feed-list exchange format supported by Feedly,
+                NetNewsWire, Inoreader, and most RSS readers.
+              </p>
+            </div>
+
+          </div><!-- /rss-feeds panel -->
+
+          <!-- Panel: RSS Sync -->
+          <div class="settings-panel hidden" data-settings-panel="rss-sync">
+            <div class="settings-pane-header">
+              <div class="settings-pane-crumb"><span>RSS</span><span class="sep">/</span><span>Refresh &amp; Sync</span></div>
+              <h2 class="settings-pane-title">Refresh &amp; Sync</h2>
+              <p class="settings-pane-subtitle">How often feeds are fetched, and whether state travels with you.</p>
+            </div>
+            <div class="settings-section settings-general-card">
+              <h4 class="settings-section-title">Refresh</h4>
+              <div class="settings-row">
+                <label class="settings-label" for="rss-background-refresh">Background refresh</label>
+                <input type="checkbox" id="rss-background-refresh" class="settings-checkbox" checked />
+              </div>
+              <div class="settings-row">
+                <label class="settings-label" for="rss-refresh-interval">Interval (minutes)</label>
+                <input
+                  type="number"
+                  id="rss-refresh-interval"
+                  class="settings-input settings-input-short"
+                  min="5"
+                  max="1440"
+                  value="30"
+                />
+              </div>
+            </div>
+
+            <div class="settings-section settings-general-card">
+              <h4 class="settings-section-title">Sync</h4>
+              <div class="settings-row">
+                <label class="settings-label" for="rss-sync-enabled">Sync read/starred to WebDAV</label>
+                <input type="checkbox" id="rss-sync-enabled" class="settings-checkbox" checked />
+              </div>
+              <div class="settings-row">
+                <label class="settings-label" for="rss-output-dir">WebDAV folder</label>
+                <input
+                  type="text"
+                  id="rss-output-dir"
+                  class="settings-input"
+                  placeholder="/rss"
+                  value="/rss"
+                  spellcheck="false"
+                />
+              </div>
+              <p class="settings-hint-block">
+                Read/starred state is saved to <code>state.json</code> in this folder
+                so it follows you across devices. Article content stays local.
+              </p>
+            </div>
+          </div><!-- /rss-sync panel -->
+
+          <!-- Panel: Shortcuts -->
+          <div class="settings-panel hidden" data-settings-panel="shortcuts">
+            <div class="settings-pane-header">
+              <div class="settings-pane-crumb"><span>Reference</span><span class="sep">/</span><span>Shortcuts</span></div>
+              <h2 class="settings-pane-title">Keyboard Shortcuts</h2>
+              <p class="settings-pane-subtitle">Every binding in MarkAllDown, grouped by the tab or surface it applies to.</p>
+            </div>
+            <p class="shortcut-platform-note">
+              On macOS, <span class="kbd">⌘</span> replaces <span class="kbd">Ctrl</span>. Shortcuts below use <span class="kbd">Ctrl</span> for brevity.
+            </p>
+
+            <div class="shortcuts-grid">
+
+              <div class="shortcut-group">
+                <div class="shortcut-group-head">
+                  <h4 class="shortcut-group-title">File</h4>
+                  <span class="shortcut-group-tag">Global</span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Open file…</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">O</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Save file</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">S</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Quit MarkAllDown</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">Q</span></span>
+                </div>
+              </div>
+
+              <div class="shortcut-group">
+                <div class="shortcut-group-head">
+                  <h4 class="shortcut-group-title">Edit</h4>
+                  <span class="shortcut-group-tag">Global</span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Find in view</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">F</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Undo / Redo</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">Z</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Cut / Copy / Paste</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">X</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Select all</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">A</span></span>
+                </div>
+              </div>
+
+              <div class="shortcut-group">
+                <div class="shortcut-group-head">
+                  <h4 class="shortcut-group-title">View</h4>
+                  <span class="shortcut-group-tag">Global</span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Claude Diff viewer</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">Shift</span><span class="kbd-plus">+</span><span class="kbd">D</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Claude Plan viewer</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">Shift</span><span class="kbd-plus">+</span><span class="kbd">P</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Cycle between windows</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">`</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Zoom in / out / reset</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">=</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Reload window</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">R</span></span>
+                </div>
+              </div>
+
+              <div class="shortcut-group">
+                <div class="shortcut-group-head">
+                  <h4 class="shortcut-group-title">Terminal</h4>
+                  <span class="shortcut-group-tag">Tab · Terminal</span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">New terminal tab</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">Shift</span><span class="kbd-plus">+</span><span class="kbd">T</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Close current tab</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">Shift</span><span class="kbd-plus">+</span><span class="kbd">W</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Next terminal tab</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">PgDn</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Previous terminal tab</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">PgUp</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Copy selection</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">Shift</span><span class="kbd-plus">+</span><span class="kbd">C</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Paste into terminal</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">Shift</span><span class="kbd-plus">+</span><span class="kbd">V</span></span>
+                </div>
+              </div>
+
+              <div class="shortcut-group">
+                <div class="shortcut-group-head">
+                  <h4 class="shortcut-group-title">Reader &amp; Find Bar</h4>
+                  <span class="shortcut-group-tag">Tab · Reader</span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Open find bar</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">F</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Next match</span>
+                  <span class="shortcut-keys"><span class="kbd">Enter</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Previous match</span>
+                  <span class="shortcut-keys"><span class="kbd">Shift</span><span class="kbd-plus">+</span><span class="kbd">Enter</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Close find bar</span>
+                  <span class="shortcut-keys"><span class="kbd">Esc</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Close RSS article overlay</span>
+                  <span class="shortcut-keys"><span class="kbd">Esc</span></span>
+                </div>
+              </div>
+
+              <div class="shortcut-group">
+                <div class="shortcut-group-head">
+                  <h4 class="shortcut-group-title">Pages &amp; Mindmap</h4>
+                  <span class="shortcut-group-tag">Tab · Pages</span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Exit mindmap fullscreen</span>
+                  <span class="shortcut-keys"><span class="kbd">Esc</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Scroll-zoom mindmap</span>
+                  <span class="shortcut-keys"><span class="kbd">Scroll</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Pan mindmap</span>
+                  <span class="shortcut-keys"><span class="kbd">Drag</span></span>
+                </div>
+              </div>
+
+              <div class="shortcut-group">
+                <div class="shortcut-group-head">
+                  <h4 class="shortcut-group-title">Editor</h4>
+                  <span class="shortcut-group-tag">Tab · Editor</span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Save current document</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">S</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">Open file…</span>
+                  <span class="shortcut-keys"><span class="kbd">Ctrl</span><span class="kbd-plus">+</span><span class="kbd">O</span></span>
+                </div>
+                <div class="shortcut-row">
+                  <span class="shortcut-label">CodeMirror default bindings</span>
+                  <span class="shortcut-keys"><span class="kbd">see docs</span></span>
+                </div>
+              </div>
+
+            </div>
+          </div><!-- /shortcuts panel -->
+
+          </section><!-- /.settings-pane -->
+        </div><!-- /.modal-body .settings-shell -->
         <div class="modal-footer">
+          <span class="settings-foot-meta">settings.json · saved automatically</span>
           <button id="btn-settings-cancel" class="btn btn-secondary">Cancel</button>
           <button id="btn-settings-save" class="btn btn-primary">Save Settings</button>
         </div>
       </div>
     </div>
 
-    <!-- ═══ Open from SSH Modal ═══ -->
+    <!-- ═══ Open from WebDAV Modal ═══ -->
 
-    <div id="open-from-ssh-modal" class="modal-overlay hidden">
+    <div id="open-from-webdav-modal" class="modal-overlay hidden">
       <div class="modal-card">
         <div class="modal-header">
-          <h3 class="modal-title">Open from SSH</h3>
-          <button id="btn-open-from-ssh-close" class="btn-icon modal-close" title="Close">
+          <h3 id="open-from-webdav-title" class="modal-title">Open Remote</h3>
+          <button id="btn-open-from-webdav-close" class="btn-icon modal-close" title="Close">
             <svg
               viewBox="0 0 24 24"
               width="18"
@@ -868,68 +1553,15 @@ graph LR
           </button>
         </div>
         <div class="modal-body">
-          <p id="open-from-ssh-error" class="open-from-ssh-error hidden"></p>
-          <p id="open-from-ssh-loading" class="modal-text">Loading remote files…</p>
-          <div id="open-from-ssh-list-wrap" class="open-from-ssh-list-wrap hidden">
-            <label class="settings-label">Select file(s) from remote folder</label>
-            <ul id="open-from-ssh-list" class="open-from-ssh-list"></ul>
-          </div>
-          <div class="settings-row" style="margin-top: 12px">
-            <label class="settings-label" for="open-from-ssh-path">Or enter path</label>
-            <input
-              type="text"
-              id="open-from-ssh-path"
-              class="settings-input"
-              placeholder="e.g. doc.md or notes/readme.md"
-              spellcheck="false"
-            />
-          </div>
+          <div id="webdav-breadcrumb" class="webdav-breadcrumb hidden"></div>
+          <p id="webdav-save-filename" class="webdav-save-filename hidden"></p>
+          <p id="open-from-webdav-error" class="open-from-ssh-error hidden"></p>
+          <p id="open-from-webdav-loading" class="modal-text hidden">Loading remote files…</p>
+          <div id="open-from-webdav-list" class="webdav-browser"></div>
         </div>
         <div class="modal-footer">
-          <button id="btn-open-from-ssh-cancel" class="btn btn-secondary">Cancel</button>
-          <button id="btn-open-from-ssh-open" class="btn btn-primary">Open</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ═══ SSH Password Prompt Modal ═══ -->
-
-    <div id="password-modal" class="modal-overlay hidden">
-      <div class="modal-card modal-card-small">
-        <div class="modal-header">
-          <h3 class="modal-title">SSH Password Required</h3>
-          <button id="btn-password-close" class="btn-icon modal-close" title="Close">
-            <svg
-              viewBox="0 0 24 24"
-              width="18"
-              height="18"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-        <div class="modal-body">
-          <p class="modal-text">
-            No SSH key is configured. Enter your password to sync, or set up an SSH key in Settings
-            for passwordless access.
-          </p>
-          <div class="settings-row">
-            <label class="settings-label" for="sync-password-input">Password</label>
-            <input
-              type="password"
-              id="sync-password-input"
-              class="settings-input"
-              placeholder="SSH password"
-            />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button id="btn-password-cancel" class="btn btn-secondary">Cancel</button>
-          <button id="btn-password-confirm" class="btn btn-primary">Connect & Sync</button>
+          <button id="btn-open-from-webdav-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="btn-open-from-webdav-open" class="btn btn-primary" disabled>Open</button>
         </div>
       </div>
     </div>
@@ -1011,6 +1643,19 @@ graph LR
 
     <!-- Marked -->
     <script src="./node_modules/marked/lib/marked.umd.js"></script>
+
+    <!-- D3.js (for MindMap visualization) -->
+    <script src="./node_modules/d3/dist/d3.min.js"></script>
+
+    <!-- pdf.js (ESM — exposes window.pdfjsLib for app.js) -->
+    <script type="module">
+      import * as pdfjsLib from './node_modules/pdfjs-dist/build/pdf.min.mjs';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = './node_modules/pdfjs-dist/build/pdf.worker.min.mjs';
+      window.pdfjsLib = pdfjsLib;
+    </script>
+
+    <!-- Agent UI host (Tier 0/1/2 dispatcher) -->
+    <script src="agents/_runtime/ui-host.js"></script>
 
     <script src="app.js"></script>
   </body>

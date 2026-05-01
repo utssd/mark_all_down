@@ -9,26 +9,25 @@ usage() {
 	cat <<EOF
 Usage: $0 [OPTIONS]
 
-Cross-platform build: produces Linux and macOS artifacts from either host.
-Cleans dist/ then runs electron-builder for current platform + cross-compiled targets in one go.
-Run on Linux or macOS (Darwin). Windows can be added from either host (see BUILD_WIN).
+Local build: produces artifacts for the current host platform only.
+Cross-platform compilation is not supported because the app includes native
+modules (node-pty) that must be compiled on the target OS. To build for all
+platforms, push a v* tag to GitHub to trigger the CI release workflow
+(.github/workflows/build.yml), which builds on Linux, macOS, and Windows runners.
 
 Options:
   --help    Show this help.
 
 Environment:
-  BUILD_DEB=1   Also build a .deb package (Linux target; run on Linux for best results).
-  BUILD_WIN=1   Also build Windows (nsis + zip). On Linux requires Wine; from macOS usually works.
+  BUILD_DEB=1   Also build a .deb package (Linux only).
 
 Examples:
   $0
   BUILD_DEB=1 $0
-  BUILD_WIN=1 $0
 
 Artifacts are written to ./$DIST_DIR/
   Linux:   .AppImage, .tar.gz (and .deb if BUILD_DEB=1)
   macOS:   .dmg, .zip
-  Windows: .exe (NSIS), .zip (if BUILD_WIN=1)
 EOF
 }
 
@@ -51,6 +50,14 @@ echo "  $APP_NAME v$VERSION — Release Build"
 echo "========================================="
 echo ""
 
+# Clean up orphan MarkAllDown AppImage wrappers + leaked FUSE mounts from
+# previous runs. See cleanup-stale-mad.sh for full rationale.
+if [[ "$(uname -s)" == "Linux" ]]; then
+	source "$(dirname "${BASH_SOURCE[0]}")/cleanup-stale-mad.sh"
+	cleanup_stale_mad_processes
+fi
+
+
 # Ensure dependencies are installed
 if [ ! -d "node_modules" ]; then
 	echo "[1/4] Installing dependencies..."
@@ -59,7 +66,7 @@ else
 	echo "[1/4] Dependencies already installed."
 fi
 
-# Clean previous artifacts so both Linux and Mac builds are refreshed
+# Clean previous artifacts
 echo "[2/4] Cleaning previous build artifacts..."
 rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
@@ -70,31 +77,24 @@ ARCH="$(uname -m)"
 echo "[3/4] Detected platform: $OS $ARCH"
 echo ""
 
-# Cross-platform: one electron-builder call for Linux + Mac (and optionally Win).
-# Builds run in parallel; output dir is cleaned by electron-builder.
-EXTRA_ARGS=()
-[[ "${BUILD_WIN:-0}" == "1" ]] && EXTRA_ARGS+=(--win)
-
 case "$OS" in
 Linux)
-	echo "[4/4] Building for Linux + macOS (cross-platform)..."
-	npx electron-builder --linux AppImage tar.gz --mac zip "${EXTRA_ARGS[@]}" || {
-		echo "  [warn] Some targets failed (e.g. Mac dmg needs macOS host). Check artifacts."
-	}
+	echo "[4/4] Building for Linux..."
+	echo "  Note: Cross-platform compilation is not supported with native modules."
+	echo "  To build for macOS/Windows, push a v* tag to trigger the GitHub Actions workflow."
+	echo ""
+	npx electron-builder --publish never --linux AppImage tar.gz
 	if [[ "${BUILD_DEB:-0}" == "1" ]]; then
 		echo "Building .deb (BUILD_DEB=1)..."
-		npx electron-builder --linux deb || echo "  [warn] deb build failed."
+		npx electron-builder --publish never --linux deb || echo "  [warn] deb build failed."
 	fi
 	;;
 Darwin)
-	echo "[4/4] Building for macOS + Linux (cross-platform)..."
-	npx electron-builder --mac dmg zip --linux AppImage tar.gz "${EXTRA_ARGS[@]}" || {
-		echo "  [warn] Some targets failed. Check artifacts."
-	}
-	if [[ "${BUILD_DEB:-0}" == "1" ]]; then
-		echo "Building .deb (BUILD_DEB=1)..."
-		npx electron-builder --linux deb || echo "  [warn] deb build failed — run on Linux for deb."
-	fi
+	echo "[4/4] Building for macOS..."
+	echo "  Note: Cross-platform compilation is not supported with native modules."
+	echo "  To build for Linux/Windows, push a v* tag to trigger the GitHub Actions workflow."
+	echo ""
+	npx electron-builder --publish never --mac dmg zip
 	;;
 *)
 	echo "Unsupported platform: $OS"

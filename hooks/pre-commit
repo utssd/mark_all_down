@@ -75,4 +75,14 @@ if [[ ${#SH_FILES[@]} -gt 0 ]]; then
   done
 fi
 
+# ── Packaging sanity check ───────────────────────────────────────────────────
+if node "$REPO_ROOT/scripts/verify-packaging.js" 2>/dev/null; then
+  true
+else
+  echo ""
+  echo "  Packaging check failed. Run: npm run test:packaging"
+  echo "  If vendors/webdav.js is missing, run: npm run vendor:webdav"
+  FAILED=1
+fi
+
 exit $FAILED

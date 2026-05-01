@@ -1,0 +1,116 @@
+<!--
+  MindMap agent — Tier 2 UI.
+  ui-host.js fetches this file at mount time and injects it into the agent
+  host element (#agent-ui-host). ui.js then wires listeners and exposes
+  mount({ host, api }) / unmount().
+-->
+
+<div class="agents-params" id="agent-params-mindmap">
+  <div class="agents-param-row">
+    <label class="agents-param-label" for="mindmap-instructions">Guidance</label>
+    <textarea
+      id="mindmap-instructions"
+      class="agents-param-textarea"
+      rows="4"
+      placeholder="Optional guidance for how Mind Map should organize the storage, name sections, or emphasize important entities…"
+      spellcheck="false"
+    ></textarea>
+  </div>
+  <p class="agents-param-hint">
+    Mind Map scans the configured WebDAV root recursively, uses the configured
+    OpenAI-compatible model for multimodal understanding, and writes an iterative
+    Markdown index back into WebDAV.
+  </p>
+  <button id="btn-mindmap-view-existing" class="btn btn-secondary mindmap-view-existing hidden">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+    View Existing Mind Map
+  </button>
+</div>
+
+<!--
+  Settings fragment — cloned into #settings-slot-mindmap at mount time.
+-->
+<template id="mindmap-settings-fragment">
+  <div class="settings-row">
+      <label class="settings-label" for="mindmap-scan-root">Scan Root</label>
+      <input
+        type="text"
+        id="mindmap-scan-root"
+        class="settings-input"
+        placeholder="/research"
+        spellcheck="false"
+      />
+    </div>
+    <div class="settings-row">
+      <label class="settings-label" for="mindmap-output-dir">Output Folder</label>
+      <input
+        type="text"
+        id="mindmap-output-dir"
+        class="settings-input"
+        placeholder="/research/mindmap"
+        spellcheck="false"
+      />
+    </div>
+    <div class="settings-row">
+      <label class="settings-label" for="mindmap-state-file">State File</label>
+      <input
+        type="text"
+        id="mindmap-state-file"
+        class="settings-input"
+        placeholder="/research/mindmap/mindmap-state.json"
+        spellcheck="false"
+      />
+    </div>
+    <div class="settings-row">
+      <label class="settings-label" for="mindmap-max-file-mb">Max File MB</label>
+      <input
+        type="number"
+        id="mindmap-max-file-mb"
+        class="settings-input settings-input-short"
+        min="1"
+        step="1"
+        value="25"
+      />
+    </div>
+    <div class="settings-row">
+      <label class="settings-label" for="mindmap-parallel-inference">Parallel Jobs</label>
+      <input
+        type="number"
+        id="mindmap-parallel-inference"
+        class="settings-input settings-input-short"
+        min="1"
+        step="1"
+        value="6"
+      />
+    </div>
+    <div class="settings-row">
+      <label class="settings-label" for="mindmap-max-context-chars">Context Chars</label>
+      <input
+        type="number"
+        id="mindmap-max-context-chars"
+        class="settings-input settings-input-short"
+        min="2000"
+        step="1000"
+        value="120000"
+      />
+    </div>
+    <div class="settings-row">
+      <label class="settings-label" for="mindmap-restructure-threshold">Restructure %</label>
+      <input
+        type="number"
+        id="mindmap-restructure-threshold"
+        class="settings-input settings-input-short"
+        min="0"
+        max="100"
+        step="1"
+        value="35"
+      />
+    </div>
+    <p class="settings-hint-block">
+      Mind Map writes a generated Markdown index back into WebDAV and expects a
+      vision-capable OpenAI-compatible model when images are present.
+    </p>
+</template>
