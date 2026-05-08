@@ -54,14 +54,13 @@ jobs:
             dist/*.zip
 
   build-windows:
-    runs-on: windows-latest
-    env:
-      # node-gyp on windows-latest sometimes fails `findVisualStudio()` with
-      # "could not find any visual studio installation to use" even though
-      # VS 2022 Build Tools are pre-installed; these hints make detection
-      # deterministic for better-sqlite3 / node-pty / @xenova rebuilds.
-      GYP_MSVS_VERSION: '2022'
-      npm_config_msvs_version: '2022'
+    # Pin to windows-2022, not windows-latest. As of 2026 `windows-latest`
+    # points at the Server-2025 image, whose VS 2022 install is missing the
+    # MSVC components node-gyp's `vswhere` probe requires, so native modules
+    # without a matching Electron prebuild (node-pty) fail to compile with
+    # "Could not find any Visual Studio installation to use". windows-2022
+    # ships a complete Desktop-development-with-C++ workload.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,8 +70,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Upgrade node-gyp
-        run: npm install --global node-gyp@latest
       - name: Install dependencies
         run: npm ci
       - name: Build Windows
