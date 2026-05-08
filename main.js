@@ -167,23 +167,15 @@ const SUPPORTED_EXTENSIONS = [
 const LARGE_FILE_WARN_BYTES = 5 * 1024 * 1024;    // 5 MB — show confirmation dialog
 const LARGE_FILE_MAX_BYTES  = 200 * 1024 * 1024;   // 200 MB — refuse to open
 
-// WebDAV Pages / Open Remote browser — keep in sync with PAGES_SUPPORTED_EXTENSIONS in app.js
-const WEBDAV_PAGES_EXTENSIONS = [
-  '.md',
-  '.markdown',
-  '.txt',
-  '.json',
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.webp',
-  '.svg',
-  '.bmp',
-  '.ico',
-  '.jpe',
-  '.jfif',
+// Images accepted by the WebDAV browser (Pages mode needs these in addition to SUPPORTED_EXTENSIONS).
+const WEBDAV_IMAGE_EXTENSIONS = [
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico', '.jpe', '.jfif',
 ];
+
+// Union of Reader-supported and image extensions — used to filter WebDAV directory listings.
+const WEBDAV_LIST_EXTENSIONS = Array.from(
+  new Set([...SUPPORTED_EXTENSIONS, ...WEBDAV_IMAGE_EXTENSIONS])
+);
 
 const WEBDAV_BINARY_IMAGE_EXT_TO_MIME = {
   '.png': 'image/png',
@@ -203,7 +195,7 @@ function webdavPagesListAcceptsItem(item) {
   // Prefer path leaf from `filename` — some servers misreport `basename` but href/filename is correct.
   const leaf = (item.filename && path.basename(item.filename)) || String(item.basename || '').trim();
   const ext = path.extname(leaf).toLowerCase();
-  if (WEBDAV_PAGES_EXTENSIONS.includes(ext)) return true;
+  if (WEBDAV_LIST_EXTENSIONS.includes(ext)) return true;
   const mime = String(item.mime || '')
     .toLowerCase()
     .split(';')[0]

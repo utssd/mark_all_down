@@ -21,13 +21,14 @@
       font-size: var(--font-size);
       -webkit-font-smoothing: antialiased;
     }
-    .popup-app { display: flex; flex-direction: column; height: 100vh; }
+    /* Divide by --ui-scale so body's zoom (from style.css) doesn't push the footer below the viewport. */
+    .popup-app { display: flex; flex-direction: column; height: calc(100vh / var(--ui-scale, 1)); }
 
     /* ── Header ─────────────────────────────────────────────── */
     .popup-header {
       position: relative;
       display: flex; align-items: center; gap: 14px;
-      padding: 0 18px; height: 48px; flex-shrink: 0;
+      padding: 0 18px; height: 52px; flex-shrink: 0;
       background: linear-gradient(180deg, #1f1a29 0%, var(--bg-secondary) 100%);
       border-bottom: 1px solid var(--border);
     }
@@ -79,7 +80,7 @@
       font-size: 12px; color: var(--text-muted);
       font-family: var(--font-mono);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      flex: 1; min-width: 0;
+      flex: 0 1 auto; min-width: 0; max-width: 260px;
     }
     .popup-plan-mtime {
       font-size: 11px; color: var(--text-muted);
@@ -184,66 +185,82 @@
       border-radius: 0 6px 6px 0;
     }
 
-    /* ── Footer shortcut rail ─────────────────────────────── */
-    .popup-footer {
-      display: flex; align-items: center; gap: 10px;
-      padding: 0 14px; height: 42px; flex-shrink: 0;
-      background: linear-gradient(180deg, var(--bg-secondary) 0%, #12171e 100%);
-      border-top: 1px solid var(--border);
-      font-family: var(--font-family);
+    /* ── Shortcut legend (inline pill in header) ───────────── */
+    .popup-legend {
+      flex: 1 1 auto; min-width: 0;
+      height: 32px; position: relative;
+      background: rgba(210, 168, 255, 0.02);
+      border: 1px solid rgba(210, 168, 255, 0.09);
+      border-radius: 8px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+      overflow: hidden;
+      container-type: inline-size;
+      container-name: legend;
     }
-    .shortcut-rail {
-      display: flex; align-items: center; gap: 0;
-      flex: 1; min-width: 0; overflow-x: auto;
-      scrollbar-width: none;
+    .popup-legend-scroll {
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; height: 100%; padding: 0 12px;
+      white-space: nowrap;
+      overflow-x: auto; scrollbar-width: none;
+      mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+      -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
     }
-    .shortcut-rail::-webkit-scrollbar { display: none; }
-    .shortcut-group {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 0 14px; white-space: nowrap;
+    .popup-legend-scroll::-webkit-scrollbar { display: none; }
+    .legend-chunk {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: var(--font-family); font-size: 12.5px;
+      color: var(--text-muted); letter-spacing: .1px;
+      flex-shrink: 0;
     }
-    .shortcut-group:first-child { padding-left: 4px; }
-    .shortcut-group + .shortcut-group {
-      border-left: 1px solid var(--border);
-    }
-    .shortcut-group-label {
-      font-size: 9.5px; letter-spacing: 1.6px;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      font-weight: 700;
-    }
-    .shortcut-keys { display: inline-flex; align-items: center; gap: 3px; }
-    .popup-footer kbd {
+    .legend-keys { display: inline-flex; align-items: center; gap: 3px; }
+    .legend-keys kbd {
       display: inline-flex; align-items: center; justify-content: center;
-      min-width: 24px; height: 24px; padding: 0 7px;
-      font-family: var(--font-mono); font-size: 11.5px; font-weight: 500;
+      min-width: 20px; height: 20px; padding: 0 7px;
+      font-family: var(--font-family); font-size: 12px; font-weight: 500;
       color: var(--text-primary);
-      background: linear-gradient(180deg, var(--key-top) 0%, var(--key-bot) 100%);
-      border: 1px solid var(--key-border);
-      border-bottom: 2px solid var(--key-shadow);
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
       border-radius: 4px;
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.06),
-        0 1px 0 rgba(0, 0, 0, 0.4);
-      text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
-      letter-spacing: 0;
+      line-height: 1.1;
     }
-    .shortcut-action-label {
-      font-size: 11px; color: var(--text-secondary); letter-spacing: .1px;
+    .legend-chunk.primary .legend-keys kbd {
+      color: var(--popup-accent);
+      border-color: var(--popup-accent);
+      background: var(--popup-accent-soft);
+      box-shadow: 0 0 10px rgba(210, 168, 255, .25);
     }
+    .legend-label {
+      font-family: var(--font-family); font-weight: 400;
+      font-size: 12.5px; color: var(--text-secondary);
+    }
+    .legend-sep {
+      width: 4px; height: 4px; border-radius: 50%;
+      background: var(--border); flex-shrink: 0;
+    }
+    @container legend (max-width: 420px) {
+      .legend-label { display: none; }
+      .popup-legend-scroll { gap: 10px; }
+      .legend-chunk { gap: 0; }
+    }
+    @media (max-width: 860px) {
+      .legend-label { display: none; }
+      .popup-legend-scroll { gap: 10px; }
+      .legend-chunk { gap: 0; }
+    }
+
     #plan-live-status {
-      font-size: 11px; color: var(--text-muted);
-      font-family: var(--font-mono); white-space: nowrap;
-      flex-shrink: 0; padding-left: 10px;
-      border-left: 1px solid var(--border);
-      display: inline-flex; align-items: center;
+      display: inline-flex; align-items: center; gap: 7px;
+      font-family: var(--font-mono); font-size: 10px;
+      letter-spacing: 2.4px; text-transform: uppercase;
+      color: var(--text-muted);
+      white-space: nowrap; flex-shrink: 0;
     }
     #plan-live-status:empty { display: none; }
 
     .plan-live-dot {
       display: inline-block; width: 7px; height: 7px; border-radius: 50%;
-      background: #7ee787; margin-right: 7px;
-      box-shadow: 0 0 8px rgba(126, 231, 135, 0.6);
+      background: #7ee787;
+      box-shadow: 0 0 8px rgba(126, 231, 135, 0.7);
       animation: live-pulse 2s ease-in-out infinite;
     }
     .plan-live-dot.stale {
@@ -345,6 +362,20 @@
       <span id="host-badge" class="host-badge" title="Active host">local</span>
       <span id="popup-plan-name" class="popup-plan-name">No plan loaded</span>
       <span id="popup-plan-mtime" class="popup-plan-mtime"></span>
+      <div class="popup-legend" aria-label="Keyboard shortcuts">
+        <div class="popup-legend-scroll">
+          <span class="legend-chunk"><span class="legend-keys"><kbd>↑</kbd><kbd>↓</kbd></span><span class="legend-label">scroll</span></span>
+          <span class="legend-sep"></span>
+          <span class="legend-chunk"><span class="legend-keys"><kbd>PgUp</kbd><kbd>PgDn</kbd></span><span class="legend-label">page</span></span>
+          <span class="legend-sep"></span>
+          <span class="legend-chunk"><span class="legend-keys"><kbd>Home</kbd><kbd>End</kbd></span><span class="legend-label">jump</span></span>
+          <span class="legend-sep"></span>
+          <span class="legend-chunk primary"><span class="legend-keys"><kbd>p</kbd></span><span class="legend-label">plans</span></span>
+          <span class="legend-sep"></span>
+          <span class="legend-chunk"><span class="legend-keys"><kbd>Esc</kbd></span><span class="legend-label">close</span></span>
+        </div>
+      </div>
+      <span id="plan-live-status"></span>
       <div class="popup-actions">
         <button id="btn-switch-plan" class="popup-btn" title="Switch plan">Plans</button>
         <button id="btn-pin" class="popup-icon-btn" title="Pin on top">
@@ -368,37 +399,6 @@
       </div>
     </main>
 
-    <footer class="popup-footer">
-      <div class="shortcut-rail" aria-label="Keyboard shortcuts">
-        <div class="shortcut-group">
-          <span class="shortcut-group-label">Scroll</span>
-          <span class="shortcut-keys"><kbd>↑</kbd><kbd>↓</kbd></span>
-        </div>
-        <div class="shortcut-group">
-          <span class="shortcut-group-label">Page</span>
-          <span class="shortcut-keys"><kbd>PgUp</kbd><kbd>PgDn</kbd></span>
-        </div>
-        <div class="shortcut-group">
-          <span class="shortcut-group-label">Jump</span>
-          <span class="shortcut-keys"><kbd>Home</kbd><kbd>End</kbd></span>
-        </div>
-        <div class="shortcut-group">
-          <span class="shortcut-group-label">Action</span>
-          <span class="shortcut-keys"><kbd>p</kbd></span>
-          <span class="shortcut-action-label">plans</span>
-          <span class="shortcut-keys"><kbd>Esc</kbd></span>
-          <span class="shortcut-action-label">close</span>
-        </div>
-        <div class="shortcut-group">
-          <span class="shortcut-group-label">Picker</span>
-          <span class="shortcut-keys"><kbd>↑</kbd><kbd>↓</kbd></span>
-          <span class="shortcut-action-label">move</span>
-          <span class="shortcut-keys"><kbd>Enter</kbd></span>
-          <span class="shortcut-action-label">open</span>
-        </div>
-      </div>
-      <span id="plan-live-status"></span>
-    </footer>
   </div>
 
   <div id="picker-modal" class="modal-overlay hidden">

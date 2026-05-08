@@ -2447,7 +2447,7 @@ ${content}
   //  Pages Mode
   // ════════════════════════════════════════════
 
-  // Keep in sync with WEBDAV_PAGES_EXTENSIONS in main.js
+  // Renderable Pages content (used for Pages link candidate probing only; not a WebDAV listing filter).
   const PAGES_SUPPORTED_EXTENSIONS = [
     '.md',
     '.markdown',
@@ -4358,6 +4358,20 @@ ${content}
     if (e.target === openFromWebdavModal) closeOpenFromWebdavModal();
   });
 
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (llmModelMenu && !llmModelMenu.classList.contains('hidden')) return;
+    if (!openFromWebdavModal.classList.contains('hidden')) {
+      e.preventDefault();
+      closeOpenFromWebdavModal();
+      return;
+    }
+    if (!settingsModal.classList.contains('hidden')) {
+      e.preventDefault();
+      closeSettingsModal();
+    }
+  });
+
   function handleOpenRemoteCommand() {
     if (currentMode === 'pages') {
       openPagesFolderPicker();
@@ -5656,10 +5670,21 @@ ${content}
       overlay.appendChild(card);
       document.body.appendChild(overlay);
 
-      const cleanup = (result) => { overlay.remove(); resolve(result); };
+      const escHandler = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          cleanup(false);
+        }
+      };
+      const cleanup = (result) => {
+        document.removeEventListener('keydown', escHandler);
+        overlay.remove();
+        resolve(result);
+      };
       card.querySelector('#large-file-cancel').onclick = () => cleanup(false);
       card.querySelector('#large-file-confirm').onclick = () => cleanup(true);
       overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
+      document.addEventListener('keydown', escHandler);
     });
   }
 
