@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP_NAME="MarkAllDown"
-VERSION=$(node -p "require('./package.json').version")
+VERSION=$("$(dirname "${BASH_SOURCE[0]}")/scripts/compute-version.sh")
 DIST_DIR="dist"
 
 usage() {
@@ -83,10 +83,10 @@ Linux)
 	echo "  Note: Cross-platform compilation is not supported with native modules."
 	echo "  To build for macOS/Windows, push a v* tag to trigger the GitHub Actions workflow."
 	echo ""
-	npx electron-builder --publish never --linux AppImage tar.gz
+	npx electron-builder --publish never --linux AppImage tar.gz --config.extraMetadata.version="$VERSION"
 	if [[ "${BUILD_DEB:-0}" == "1" ]]; then
 		echo "Building .deb (BUILD_DEB=1)..."
-		npx electron-builder --publish never --linux deb || echo "  [warn] deb build failed."
+		npx electron-builder --publish never --linux deb --config.extraMetadata.version="$VERSION" || echo "  [warn] deb build failed."
 	fi
 	;;
 Darwin)
@@ -94,7 +94,7 @@ Darwin)
 	echo "  Note: Cross-platform compilation is not supported with native modules."
 	echo "  To build for Linux/Windows, push a v* tag to trigger the GitHub Actions workflow."
 	echo ""
-	npx electron-builder --publish never --mac dmg zip
+	npx electron-builder --publish never --mac dmg zip --config.extraMetadata.version="$VERSION"
 	;;
 *)
 	echo "Unsupported platform: $OS"

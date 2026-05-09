@@ -1,6 +1,6 @@
 {
   "name": "markalldown",
-  "version": "1.0.0",
+  "version": "0.0.0-dev",
   "description": "Markdown reader and Mermaid diagram editor",
   "license": "SEE LICENSE IN LICENSE",
   "author": {
