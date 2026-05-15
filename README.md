@@ -29,6 +29,45 @@ Settings are persisted to your OS user-data folder (`~/.config/MarkAllDown/setti
 
 ---
 
+## Releasing
+
+Versioning is automatic. `package.json` is frozen at `0.0.0-dev`; the real version comes from git tags via `scripts/compute-version.sh` (resolution order: `GITHUB_REF` → `git describe --tags --match 'v*' --dirty` → `0.0.0-dev+<short-sha>`). `release.sh` and CI pass `--config.extraMetadata.version` to electron-builder so `package.json` is never edited.
+
+### Local build (current host only)
+
+```bash
+./release.sh                       # stamp from `git describe` → e.g. 1.2.3-4-gabc1234[-dirty]
+BUILD_DEB=1 ./release.sh           # Linux + .deb
+
+git tag v1.2.3 && ./release.sh     # stamp a clean "1.2.3" (or "1.2.3-dirty" if tree is dirty)
+```
+
+Artifacts land in `./dist/`. No `package.json` edit ever required.
+
+### Cross-platform release (GitHub Actions)
+
+Triggered by pushing a `v*` tag. CI builds Linux + macOS + Windows and publishes a GitHub Release.
+
+```bash
+# Normal release
+git tag v1.2.3
+git push origin v1.2.3
+
+# Re-release the same tag after a fix
+git tag -f v1.2.3
+git push --force origin v1.2.3
+```
+
+The release job runs `gh release delete "$TAG"` first (skips silently if none exists), so a force-pushed tag replaces the release cleanly rather than duplicating or failing on asset conflicts.
+
+**Rules:**
+
+- Tags must be semver: `vX.Y.Z` (three parts). `v1.1` will be rejected by electron-builder.
+- Only tag pushes trigger CI builds. Plain `git push` to `master` does not.
+- Tags are branch-agnostic — CI builds whatever commit the tag points at.
+
+---
+
 ## Features
 
 ### Reader
@@ -278,6 +317,18 @@ No telemetry, no cloud calls — these windows read Claude Code's local session 
 | `Ctrl+Shift+D`    | Claude Diff Viewer  |
 | `Ctrl+Shift+P`    | Claude Plan Viewer  |
 | `` Ctrl+` ``      | Cycle windows       |
+
+---
+
+## Changelog
+
+### v1.2.0
+
+- Switched the Terminal tab from xterm's DOM renderer to the WebGL2 renderer (`@xterm/addon-webgl`) and split mount from attach so `terminal.open()` runs only once the container is visible — eliminates the steady-state renderer-process memory growth and keeps cursor blink working on first activation.
+- Added one-shot WebGL context-loss recovery: on GPU process restart / driver reset / suspend-resume, a fresh WebGL addon is reinstalled on the same terminal. If recreation fails, the tab shows a yellow notice instead of falling back to the leak-prone DOM renderer.
+- RSS reader no longer re-sanitizes already-known articles on every refresh; only newly seen GUIDs run through the sanitizer.
+- `install-linux.sh` now walks up from MAD helper PIDs through Electron / MarkAllDown ancestors, so dev-mode (`npm start`) main processes are also cleaned up during stale-instance shutdown.
+- README documents the local and remote (CI tag) release flows.
 
 ---
 

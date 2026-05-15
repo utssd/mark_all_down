@@ -135,6 +135,14 @@ source "$SCRIPT_DIR/cleanup-stale-mad.sh"
 # Resolve the outermost live MAD wrapper PIDs (processes matched by pattern
 # whose parent is NOT itself a matched MAD process). Skips this shell and
 # its parent so we don't target ourselves when invoked from MAD's terminal.
+#
+# The pgrep pattern matches AppImage wrappers and helper Electron processes
+# (gpu/utility/renderer carry `--user-data-dir=…/markalldown` in argv). In
+# dev mode (`npm start` → `electron .`), the main process and zygote(s)
+# don't carry "markalldown" in argv at all, so pgrep misses them. Without
+# them in the set, killing only the helpers leaves the main process
+# alive, holding a black-panel window. Walk up from matched helpers and
+# include any `electron`-comm ancestors to recover the main process.
 find_running_mad_pids() {
 	local pids=() pid parent kept=()
 	while IFS= read -r pid; do
@@ -148,6 +156,32 @@ find_running_mad_pids() {
 	((${#pids[@]} == 0)) && { echo "[diag] find_running_mad_pids: pgrep found nothing" >&2; return 0; }
 	declare -A in_set=()
 	for pid in "${pids[@]}"; do in_set[$pid]=1; done
+	# Walk parents whose comm is electron/MarkAllDown/markalldown — catches
+	# the dev-mode main process and zygote that aren't reachable via pgrep
+	# argv match. Stop on init (pid<=1), self/parent shell, or non-electron
+	# comm so we don't accidentally adopt the shell or systemd.
+	local cur ppid pcomm
+	for pid in "${pids[@]}"; do
+		cur="$pid"
+		while :; do
+			ppid="$(ps -o ppid= -p "$cur" 2>/dev/null | tr -d ' ')"
+			[[ -z "$ppid" || "$ppid" -le 1 ]] && break
+			[[ "$ppid" == "$$" || "$ppid" == "$PPID" ]] && break
+			[[ -n "${in_set[$ppid]:-}" ]] && { cur="$ppid"; continue; }
+			pcomm="$(ps -o comm= -p "$ppid" 2>/dev/null | tr -d ' ')"
+			case "$pcomm" in
+				electron|MarkAllDown|markalldown)
+					in_set[$ppid]=1
+					pids+=("$ppid")
+					echo "[diag]   walk-up: include parent pid=$ppid comm=$pcomm (child=$cur)" >&2
+					cur="$ppid"
+					;;
+				*)
+					break
+					;;
+			esac
+		done
+	done
 	for pid in "${pids[@]}"; do
 		if [[ "$pid" == "$$" || "$pid" == "$PPID" ]]; then
 			echo "[diag]   skip pid=$pid reason=self-or-parent" >&2

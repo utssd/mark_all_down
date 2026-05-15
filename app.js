@@ -69,6 +69,7 @@
     await loadScript('./node_modules/@xterm/addon-fit/lib/addon-fit.js');
     await loadScript('./node_modules/@xterm/addon-web-links/lib/addon-web-links.js');
     await loadScript('./node_modules/@xterm/addon-search/lib/addon-search.js');
+    await loadScript('./node_modules/@xterm/addon-webgl/lib/addon-webgl.js');
     _xtermReady = true;
   }
 
@@ -6875,6 +6876,9 @@ ${content}
     });
     const tab = _termTabs.find((t) => t.id === tabId);
     if (tab) {
+      // First activation: container just became visible, so it's now safe to
+      // call terminal.open() and load the WebGL addon — see _attachTerminal.
+      if (!tab.attached) _attachTerminal(tab);
       if (tab.fitAddon) tab.fitAddon.fit();
       if (tab.terminal) tab.terminal.focus();
       btnTerminalRestart.classList.toggle('hidden', tab.spawned);
@@ -6902,6 +6906,7 @@ ${content}
 
     if (tab.searchListener) { try { tab.searchListener.dispose(); } catch (_) {} tab.searchListener = null; }
     tab.searchAddon = null;
+    if (tab.webglAddon) { try { tab.webglAddon.dispose(); } catch (_) {} tab.webglAddon = null; }
     try { tab.terminal.dispose(); } catch (_) {}
     tab.terminal = null;
 
@@ -6923,6 +6928,7 @@ ${content}
     if (tab.ptyId) await window.electronAPI.terminalKill(tab.ptyId);
     if (tab.searchListener) { try { tab.searchListener.dispose(); } catch (_) {} tab.searchListener = null; }
     tab.searchAddon = null;
+    if (tab.webglAddon) { try { tab.webglAddon.dispose(); } catch (_) {} tab.webglAddon = null; }
     if (tab.terminal) { try { tab.terminal.dispose(); } catch (_) {} tab.terminal = null; }
     tab.containerEl.remove();
     _termTabs.splice(idx, 1);
@@ -6955,9 +6961,9 @@ ${content}
     }
   }
 
-  // Build a fresh xterm + addons inside shellEl and wire it to the given tab.
-  // Used by createTermTab() for new tabs and by the Restart button to rebuild
-  // after _freezeExitedTerminal() disposed the previous xterm.
+  // Construct the xterm Terminal and stash the shell element. Does NOT call
+  // terminal.open() — that's deferred to _attachTerminal so it runs against a
+  // visible container (see comment in _attachTerminal).
   function _mountTerminal(tab, shellEl) {
     const rootStyle = getComputedStyle(document.documentElement);
     const termFontMono = rootStyle.getPropertyValue('--font-mono').trim() || "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace";
@@ -6976,12 +6982,85 @@ ${content}
         selectionBackground: 'rgba(56, 139, 253, 0.3)',
       },
     });
+    tab.terminal = terminal;
+    tab.shellEl = shellEl;
+    tab.attached = false;
+    tab.fitAddon = null;
+    tab.searchAddon = null;
+    tab.searchListener = null;
+    tab.webglAddon = null;
+  }
+
+  // Open the terminal against its (now-visible) shell element and wire all
+  // addons that depend on real DOM dimensions. Must run only when the tab's
+  // containerEl has the .active class (i.e. display:flex, not display:none).
+  // VS Code's xtermTerminal.attachToElement follows the same pattern: open()
+  // and the WebGL addon are deferred until the panel is being shown, otherwise
+  // the WebGL renderer initialises against zero-sized canvas and the cursor
+  // blink render path is silently broken (state machine toggles correctly,
+  // but no pixel update lands).
+  function _attachTerminal(tab) {
+    if (tab.attached || !tab.terminal || !tab.shellEl) return;
+    const terminal = tab.terminal;
+    const shellEl = tab.shellEl;
     const fitAddon = new FitAddon.FitAddon();
     terminal.loadAddon(fitAddon);
     terminal.loadAddon(new WebLinksAddon.WebLinksAddon((event, uri) => {
       window.electronAPI.openExternal(uri);
     }));
     terminal.open(shellEl);
+    // GPU-accelerated renderer (WebGL2). Without this, xterm uses the DOM
+    // renderer, where cursor blink + sustained output streaming cause
+    // unbounded paint-record growth in Chromium (driving ~80-150 MB/h
+    // renderer leak that culminates in V8 OOM after ~34h). WebGL renders
+    // the entire terminal grid + cursor as a single texture atlas on the
+    // GPU.
+    // On WebGL context loss (GPU process restart, driver reset, suspend/resume)
+    // the glyph texture atlas is destroyed: cell backgrounds still paint but
+    // every character disappears. Try ONCE to install a fresh WebGL addon on
+    // the same terminal. Never fall back to xterm's DOM renderer — that path
+    // is the original ~80-150 MB/h leak (see commit 5a6cfba). If recreation
+    // fails, leave the tab broken and tell the user to close/reopen it.
+    function installWebglAddon() {
+      let addon;
+      try {
+        addon = new WebglAddon.WebglAddon();
+      } catch (e) {
+        console.warn('[xterm] WebGL addon construction failed:', e);
+        return null;
+      }
+      addon.onContextLoss(() => {
+        const tag = '[xterm] tab=' + (tab.label || tab.id);
+        console.warn(tag + ' WebGL context lost; attempting one-shot recreation');
+        try { addon.dispose(); } catch (_) {}
+        tab.webglAddon = null;
+        const recreated = installWebglAddon();
+        if (recreated) {
+          tab.webglAddon = recreated;
+          console.warn(tag + ' WebGL recreation succeeded');
+        } else {
+          console.warn(tag + ' WebGL recreation FAILED; no DOM fallback (leak avoidance) — close & reopen this tab');
+          try {
+            terminal.write('\r\n\x1b[33m[xterm: WebGL context lost, recreation failed — close & reopen this tab]\x1b[0m\r\n');
+          } catch (_) {}
+        }
+      });
+      try {
+        terminal.loadAddon(addon);
+      } catch (e) {
+        console.warn('[xterm] WebGL loadAddon failed:', e);
+        try { addon.dispose(); } catch (_) {}
+        return null;
+      }
+      return addon;
+    }
+    let webglAddon = null;
+    if (typeof WebglAddon !== 'undefined' && WebglAddon.WebglAddon) {
+      webglAddon = installWebglAddon();
+      if (!webglAddon) {
+        console.warn('[xterm] initial WebGL install failed; xterm will use its default renderer');
+      }
+    }
     // xterm's built-in paste handler (bubble-phase, on both the helper
     // textarea and the .xterm element) reads only text/plain, so image
     // clipboard data — screenshots destined for Claude Code and similar
@@ -7012,7 +7091,6 @@ ${content}
     terminal.attachCustomKeyEventHandler(handleTerminalKeyEvent);
     const searchAddon = new SearchAddon.SearchAddon();
     terminal.loadAddon(searchAddon);
-    // Forward result counts to the find bar when this tab is the active one.
     const searchListener = searchAddon.onDidChangeResults(({ resultIndex, resultCount }) => {
       if (!findBarVisible) return;
       if (currentMode !== 'terminal' || _activeTermTabId !== tab.id) return;
@@ -7020,10 +7098,11 @@ ${content}
       customFindCurrentIndex = resultIndex >= 0 ? resultIndex : 0;
       updateFindMatchCountDisplay();
     });
-    tab.terminal = terminal;
     tab.fitAddon = fitAddon;
     tab.searchAddon = searchAddon;
     tab.searchListener = searchListener;
+    tab.webglAddon = webglAddon;
+    tab.attached = true;
   }
 
   async function createTermTab() {
@@ -7062,7 +7141,7 @@ ${content}
     shelfEl.append(shelfDot, shelfBracketL, shelfLabelEl, shelfBracketR, shelfSep, shelfHint);
     containerEl.appendChild(shelfEl);
 
-    const tab = { id: tabId, label, terminal: null, fitAddon: null, searchAddon: null, searchListener: null, spawned: false, containerEl, shelfLabelEl, ptyId: null };
+    const tab = { id: tabId, label, terminal: null, fitAddon: null, searchAddon: null, searchListener: null, webglAddon: null, attached: false, shellEl: null, spawned: false, containerEl, shelfLabelEl, ptyId: null };
     _mountTerminal(tab, shellEl);
     _termTabs.push(tab);
 
@@ -7159,6 +7238,10 @@ ${content}
       if (!shellEl) return;
       shellEl.innerHTML = '';
       _mountTerminal(tab, shellEl);
+      // Restart runs against the active tab, so the container is already
+      // visible — attach immediately rather than waiting for next activate.
+      _attachTerminal(tab);
+      if (tab.fitAddon) tab.fitAddon.fit();
       if (tab.containerEl) tab.containerEl.classList.remove('is-disconnected');
     } else {
       tab.terminal.clear();
@@ -7509,33 +7592,34 @@ ${content}
     );
     for (const item of items) {
       const guid = rssMakeGuid(item, feed.id);
-      const cleanHtml = rssSanitizeHtml(item.html);
+      const existing = existingByGuid.get(guid);
+      // Skip sanitize/excerpt/image work for known articles. The guid is
+      // already a stable identifier — refresh-time DOMParser churn over
+      // already-stored items leaks off-heap memory through Chromium's
+      // lazy DOM cleanup. Title/url/author can still drift cheaply.
+      if (existing) {
+        existing.title = item.title;
+        existing.url = item.link || existing.url;
+        if (item.author) existing.author = item.author;
+        continue;
+      }
+      const cleanHtml = rssSanitizeHtml(item.html).slice(0, 32768);
       const excerpt = rssStripTags(item.html).slice(0, 220);
       const imageUrl = rssExtractImage(item.html);
       const publishedAt = item.pubDate ? Date.parse(item.pubDate) || Date.now() : Date.now();
-      if (existingByGuid.has(guid)) {
-        const existing = existingByGuid.get(guid);
-        existing.title = item.title;
-        existing.url = item.link || existing.url;
-        existing.contentHtml = cleanHtml;
-        existing.excerpt = excerpt;
-        if (imageUrl) existing.imageUrl = imageUrl;
-        if (item.author) existing.author = item.author;
-      } else {
-        _rssState.articles.push({
-          guid,
-          feedId: feed.id,
-          url: item.link || '',
-          title: item.title,
-          author: item.author || '',
-          contentHtml: cleanHtml,
-          excerpt,
-          imageUrl,
-          publishedAt,
-          read: false,
-          starred: false,
-        });
-      }
+      _rssState.articles.push({
+        guid,
+        feedId: feed.id,
+        url: item.link || '',
+        title: item.title,
+        author: item.author || '',
+        contentHtml: cleanHtml,
+        excerpt,
+        imageUrl,
+        publishedAt,
+        read: false,
+        starred: false,
+      });
     }
     // Cap per-feed: trim oldest read articles first
     const feedArticles = _rssState.articles.filter((a) => a.feedId === feed.id);
@@ -8195,6 +8279,10 @@ ${outlines}
     } catch (_) {}
     try {
       for (const tab of _termTabs) {
+        if (tab.webglAddon) {
+          try { tab.webglAddon.dispose(); } catch (_) {}
+          tab.webglAddon = null;
+        }
         if (tab.terminal) {
           try { tab.terminal.dispose(); } catch (_) {}
           tab.terminal = null;
