@@ -337,6 +337,8 @@ g & h & i
   const terminalMain = document.getElementById('terminal-main');
   const btnTerminalNewTab = document.getElementById('btn-terminal-new-tab');
   const btnTerminalRestart = document.getElementById('btn-terminal-restart');
+  const terminalGpuWarning = document.getElementById('terminal-gpu-warning');
+  const btnTerminalGpuReload = document.getElementById('terminal-gpu-reload-btn');
   const mdEditorPreviewEl = document.getElementById('md-editor-preview');
   const btnMdEditorDownloadHTML = document.getElementById('btn-md-editor-download-html');
   const mdEditorTabBar = document.getElementById('md-editor-tab-bar');
@@ -6991,40 +6993,6 @@ ${content}
     tab.webglAddon = null;
   }
 
-  function _repairTerminalWebglRenderer(tab, reason) {
-    const terminal = tab && tab.terminal;
-    if (!terminal) return;
-    try {
-      if (tab.webglAddon && typeof tab.webglAddon.clearTextureAtlas === 'function') {
-        tab.webglAddon.clearTextureAtlas();
-      } else if (typeof terminal.clearTextureAtlas === 'function') {
-        terminal.clearTextureAtlas();
-      }
-      terminal.refresh(0, Math.max(0, terminal.rows - 1));
-    } catch (e) {
-      console.warn('[xterm] WebGL renderer repair failed (' + reason + '):', e);
-    }
-  }
-
-  function _queueTerminalRendererRepair(tab, reason, delayMs) {
-    setTimeout(() => {
-      const run = () => _repairTerminalWebglRenderer(tab, reason);
-      if (typeof requestAnimationFrame === 'function') {
-        requestAnimationFrame(() => requestAnimationFrame(run));
-      } else {
-        run();
-      }
-    }, delayMs);
-  }
-
-  function _scheduleTerminalRendererRepair(reason) {
-    const delays = [0, 250, 1000, 3500];
-    for (const tab of _termTabs) {
-      if (!tab || !tab.terminal || !tab.webglAddon) continue;
-      for (const delayMs of delays) _queueTerminalRendererRepair(tab, reason, delayMs);
-    }
-  }
-
   // Open the terminal against its (now-visible) shell element and wire all
   // addons that depend on real DOM dimensions. Must run only when the tab's
   // containerEl has the .active class (i.e. display:flex, not display:none).
@@ -7071,7 +7039,6 @@ ${content}
         const recreated = installWebglAddon();
         if (recreated) {
           tab.webglAddon = recreated;
-          _scheduleTerminalRendererRepair('webgl-context-recreated');
           console.warn(tag + ' WebGL recreation succeeded');
         } else {
           console.warn(tag + ' WebGL recreation FAILED; no DOM fallback (leak avoidance) — close & reopen this tab');
@@ -7239,10 +7206,16 @@ ${content}
       if (tab.id === _activeTermTabId) btnTerminalRestart.classList.remove('hidden');
     });
 
+    // GPU process death poisons xterm's process-wide texture atlas state in a
+    // way no in-process recovery has reliably fixed. Surface a banner that
+    // lets the user reload the renderer window — the only known full recovery.
+    if (btnTerminalGpuReload) {
+      btnTerminalGpuReload.addEventListener('click', () => window.location.reload());
+    }
     if (window.electronAPI.onGpuProcessGone) {
       window.electronAPI.onGpuProcessGone((details) => {
-        console.warn('[xterm] GPU process gone; repairing WebGL terminal renderers', details);
-        _scheduleTerminalRendererRepair('gpu-process-gone');
+        console.warn('[xterm] GPU process gone; prompting user to reload window', details);
+        if (terminalGpuWarning) terminalGpuWarning.classList.remove('hidden');
       });
     }
 

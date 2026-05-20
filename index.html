@@ -637,7 +637,17 @@ graph LR
         <nav class="terminal-tab-list" id="terminal-tab-list"></nav>
       </aside>
       <!-- Terminal main area (per-tab containers inserted dynamically) -->
-      <div class="terminal-main" id="terminal-main"></div>
+      <div class="terminal-main" id="terminal-main">
+        <div class="terminal-warning hidden" id="terminal-gpu-warning" role="alert">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>GPU process restarted &mdash; terminals stopped rendering glyphs. Reload the window to recover.</span>
+          <button class="terminal-warning-action" id="terminal-gpu-reload-btn" type="button">Reload window</button>
+        </div>
+      </div>
     </main>
 
     <!-- ═══ RSS Reader Mode ═══ -->

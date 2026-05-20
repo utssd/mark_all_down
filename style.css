@@ -2755,6 +2755,36 @@ body {
   width: 100%;
 }
 
+/* ── Terminal GPU-restart warning banner ── */
+.terminal-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 12px 0;
+  padding: 9px 14px;
+  background: var(--error-bg);
+  border: 1px solid rgba(248, 81, 73, 0.3);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.terminal-warning-action {
+  margin-left: auto;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.terminal-warning-action:hover {
+  background: var(--bg-elevated, var(--bg-surface));
+  border-color: var(--text-secondary);
+}
+
 /* ── Terminal Main Area ── */
 
 .terminal-main {
