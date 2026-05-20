@@ -6991,6 +6991,40 @@ ${content}
     tab.webglAddon = null;
   }
 
+  function _repairTerminalWebglRenderer(tab, reason) {
+    const terminal = tab && tab.terminal;
+    if (!terminal) return;
+    try {
+      if (tab.webglAddon && typeof tab.webglAddon.clearTextureAtlas === 'function') {
+        tab.webglAddon.clearTextureAtlas();
+      } else if (typeof terminal.clearTextureAtlas === 'function') {
+        terminal.clearTextureAtlas();
+      }
+      terminal.refresh(0, Math.max(0, terminal.rows - 1));
+    } catch (e) {
+      console.warn('[xterm] WebGL renderer repair failed (' + reason + '):', e);
+    }
+  }
+
+  function _queueTerminalRendererRepair(tab, reason, delayMs) {
+    setTimeout(() => {
+      const run = () => _repairTerminalWebglRenderer(tab, reason);
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => requestAnimationFrame(run));
+      } else {
+        run();
+      }
+    }, delayMs);
+  }
+
+  function _scheduleTerminalRendererRepair(reason) {
+    const delays = [0, 250, 1000, 3500];
+    for (const tab of _termTabs) {
+      if (!tab || !tab.terminal || !tab.webglAddon) continue;
+      for (const delayMs of delays) _queueTerminalRendererRepair(tab, reason, delayMs);
+    }
+  }
+
   // Open the terminal against its (now-visible) shell element and wire all
   // addons that depend on real DOM dimensions. Must run only when the tab's
   // containerEl has the .active class (i.e. display:flex, not display:none).
@@ -7037,6 +7071,7 @@ ${content}
         const recreated = installWebglAddon();
         if (recreated) {
           tab.webglAddon = recreated;
+          _scheduleTerminalRendererRepair('webgl-context-recreated');
           console.warn(tag + ' WebGL recreation succeeded');
         } else {
           console.warn(tag + ' WebGL recreation FAILED; no DOM fallback (leak avoidance) — close & reopen this tab');
@@ -7203,6 +7238,13 @@ ${content}
       if (tab.containerEl) tab.containerEl.classList.add('is-disconnected');
       if (tab.id === _activeTermTabId) btnTerminalRestart.classList.remove('hidden');
     });
+
+    if (window.electronAPI.onGpuProcessGone) {
+      window.electronAPI.onGpuProcessGone((details) => {
+        console.warn('[xterm] GPU process gone; repairing WebGL terminal renderers', details);
+        _scheduleTerminalRendererRepair('gpu-process-gone');
+      });
+    }
 
     // Window resize — fit only the active tab
     window.addEventListener('resize', () => {

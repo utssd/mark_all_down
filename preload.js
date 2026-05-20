@@ -71,6 +71,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onTerminalData: (cb) => ipcRenderer.on('terminal:output', (_e, { ptyId, data }) => cb(ptyId, data)),
   onTerminalExit: (cb) => ipcRenderer.on('terminal:exit', (_e, { ptyId, exitCode }) => cb(ptyId, exitCode)),
   terminalSaveClipboardImage: () => ipcRenderer.invoke('terminal:saveClipboardImage'),
+  onGpuProcessGone: (cb) => ipcRenderer.on('gpu:process-gone', (_e, details) => cb(details)),
 
   // RSS
   rssFetchFeed: (url) => ipcRenderer.invoke('rss:fetchFeed', { url }),

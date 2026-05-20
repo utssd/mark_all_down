@@ -156,6 +156,12 @@ let _pagesIncludeCache = {}; // { [absolutePath]: string }
 let mainWindow = null;
 let pendingFilePath = null;
 
+function sendToMainWindow(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload);
+  }
+}
+
 const SUPPORTED_EXTENSIONS = [
   '.md', '.markdown', '.txt',
   '.pdf',
@@ -3308,6 +3314,13 @@ app.whenReady().then(() => {
     _monitorHandle = startMonitor({ app, appVersion: app.getVersion() });
   } catch (_) {
     // monitor is best-effort; never block startup
+  }
+});
+
+app.on('child-process-gone', (_event, details) => {
+  if (details && details.type === 'GPU') {
+    console.warn('[gpu] process gone:', details);
+    sendToMainWindow('gpu:process-gone', details);
   }
 });
 
