@@ -8278,6 +8278,31 @@ ${outlines}
   // offscreen iframes); without this handler, Cmd/Ctrl-R reload across a
   // long-running session accumulates fds until the renderer hits
   // RLIMIT_NOFILE and freezes (observed on Ubuntu at ~1024 fds).
+  // External links in the rendered Markdown previews (reader + md-editor) have
+  // real href attributes. A plain left-click on one starts a top-level
+  // navigation; that navigation fires the window 'beforeunload' below BEFORE
+  // main.js's will-navigate handler cancels it and reroutes to the OS browser.
+  // The result was a cancelled navigation that had already torn down state
+  // (terminals/PTYs) — the "terminal goes blank after clicking a preview link"
+  // bug. (Ctrl/Cmd-click went through setWindowOpenHandler, which never starts
+  // a navigation, so it was unaffected.) Intercept external-URL clicks here and
+  // route them straight to the OS browser so no navigation is ever started.
+  // Internal links (relative paths, '#' anchors) are left alone — the pages and
+  // agents panes have their own handlers and live outside these containers.
+  function _routeExternalLinkClicks(container) {
+    if (!container) return;
+    container.addEventListener('click', (ev) => {
+      const anchor = ev.target.closest('a[href]');
+      if (!anchor || !container.contains(anchor)) return;
+      const href = anchor.getAttribute('href') || '';
+      if (!/^(https?:|mailto:)/i.test(href)) return; // only external; internal links navigate as before
+      ev.preventDefault();
+      try { window.electronAPI.openExternal(href); } catch (_) {}
+    });
+  }
+  _routeExternalLinkClicks(markdownBody);
+  _routeExternalLinkClicks(mdEditorPreviewEl);
+
   window.addEventListener('beforeunload', () => {
     try {
       if (markdownBody) {
@@ -8292,21 +8317,13 @@ ${outlines}
         }
       }
     } catch (_) {}
-    try {
-      for (const tab of _termTabs) {
-        if (tab.webglAddon) {
-          try { tab.webglAddon.dispose(); } catch (_) {}
-          tab.webglAddon = null;
-        }
-        if (tab.terminal) {
-          try { tab.terminal.dispose(); } catch (_) {}
-          tab.terminal = null;
-        }
-        if (tab.ptyId) {
-          try { window.electronAPI.terminalKill(tab.ptyId); } catch (_) {}
-        }
-      }
-    } catch (_) {}
+    // NOTE: terminals and PTYs are deliberately NOT disposed here. 'beforeunload'
+    // fires on any top-level navigation attempt, not only on real app exit — and
+    // main.js cancels external-link navigations (will-navigate -> openExternal),
+    // so the page keeps running. Disposing terminals/killing PTYs here destroyed
+    // live terminals on those cancelled navigations (the preview-link bug).
+    // Authoritative PTY teardown on real quit lives in main.js 'before-quit'
+    // (killTerminalPty()), which the renderer cannot outlive anyway.
     try {
       if (_rssRefreshTimer) { clearInterval(_rssRefreshTimer); _rssRefreshTimer = null; }
     } catch (_) {}

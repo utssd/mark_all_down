@@ -1065,6 +1065,20 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
+  // A renderer reload (GPU-banner Reload button, Ctrl+R, menu reload) rebuilds
+  // the page: the renderer drops its terminal/PTY references and spawns fresh
+  // ones, orphaning the previous PTYs. The renderer's 'beforeunload' no longer
+  // kills PTYs (doing so destroyed live terminals on cancelled external-link
+  // navigations — the preview-link bug), so reap them here instead. Only fire
+  // on a main-frame reload to our own app document (file:/about:blank) — never
+  // on external http(s) navigations, which main.js cancels and routes to the OS
+  // browser and which must NOT tear down terminals.
+  mainWindow.webContents.on('did-start-navigation', (_event, url, _isInPlace, isMainFrame) => {
+    if (!isMainFrame) return;
+    if (/^https?:/i.test(url)) return;
+    killTerminalPty();
+  });
+
   mainWindow.webContents.on('did-finish-load', () => {
     const filePath = pendingFilePath || extractFileArg(process.argv);
     pendingFilePath = null;
