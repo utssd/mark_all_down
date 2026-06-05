@@ -3591,6 +3591,32 @@ ${content}
     const fileType = classifyFileType(filePath, options.fileType);
     const existing = readerTabs.find((t) => t.filePath === filePath && (t.source || 'local') === source);
     if (existing) {
+      // Re-opening an already-open file: the caller passed freshly-read content
+      // (the main process re-reads from disk on every open), so refresh the tab
+      // to the latest content instead of re-displaying the cached original.
+      // Without this, editing a file on disk and re-opening it showed stale
+      // content. Mirrors the remote refresh path (refreshActiveReaderTabIfRemote):
+      // replace rawContent, invalidate the rendered-HTML cache, drop any large/
+      // virtual renderer state, and reset scroll so it reads like a fresh open.
+      if (content != null && content !== existing.rawContent) {
+        if (existing.largeFile && existing.largeFile.virtualRenderer) {
+          try { existing.largeFile.virtualRenderer.detach(); } catch (_) {}
+        }
+        existing.rawContent = content;
+        existing.renderedHtml = null;
+        existing.largeFile = null;
+        existing.fileSize = options.fileSize != null ? options.fileSize : (content ? content.length : 0);
+        existing.lastmod = options.lastmod || null;
+        existing.etag = options.etag || null;
+      }
+      existing.scrollTop = 0;
+      // readerActivateTab() calls readerSaveScroll() first, which for the
+      // currently-active tab would overwrite scrollTop with the live position
+      // (the common case: reopening the file you're already viewing). Zero the
+      // live container scroll too so the reload lands at the top.
+      if (activeReaderTabId === existing.id) {
+        try { readerScrollContainer.scrollTop = 0; } catch (_) {}
+      }
       await readerActivateTab(existing.id);
       return;
     }
