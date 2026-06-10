@@ -8358,6 +8358,25 @@ ${outlines}
 
   // ── Initialise ──
 
+  // Warm the self-hosted UI fonts at startup. The Settings modal and other
+  // chrome use Onest / JetBrains Mono, but they live in `display:none`
+  // containers, so the browser would otherwise lazy-load those faces only when
+  // a panel is first shown — and applying the swapped metrics mid-view made the
+  // Settings scrollbar resize while scrolling (scrollHeight jumped ~44px). Force
+  // the faces resident now so first open paints at the final height. The fonts
+  // are local (fonts/fonts.css, font-display:block), so this is a fast disk read.
+  function warmUiFonts() {
+    if (!document.fonts || typeof document.fonts.load !== 'function') return;
+    // Only the faces that actually exist locally (Onest 400/500/600, JetBrains
+    // Mono 400/500); weight-700 UI rules faux-bold the 600 face, as before.
+    const faces = [
+      "400 14px 'Onest'", "500 14px 'Onest'", "600 14px 'Onest'",
+      "400 14px 'JetBrains Mono'", "500 14px 'JetBrains Mono'",
+    ];
+    faces.forEach((f) => { try { document.fonts.load(f); } catch (_) {} });
+  }
+  warmUiFonts();
+
   localizeShortcutHints();
   initAgentsList();
 })();

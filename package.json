@@ -106,6 +106,7 @@
       "diff-renderer.js",
       "plan-renderer.js",
       "style.css",
+      "fonts/**/*.{css,woff2}",
       "icon.png",
       "logo.png",
       "build/entitlements.mac.plist",

@@ -329,6 +329,7 @@ No telemetry, no cloud calls — these windows read Claude Code's local session 
 - RSS reader no longer re-sanitizes already-known articles on every refresh; only newly seen GUIDs run through the sanitizer.
 - `install-linux.sh` now walks up from MAD helper PIDs through Electron / MarkAllDown ancestors, so dev-mode (`npm start`) main processes are also cleaned up during stale-instance shutdown.
 - README documents the local and remote (CI tag) release flows.
+- Self-hosted the Settings UI fonts (Onest, JetBrains Mono, IBM Plex) under `fonts/` as local woff2 with `font-display: block`, replacing the Google Fonts `<link>` in `index.html`. The CDN load used `display=swap`, and because the Settings panes live in `display:none` containers the fonts were fetched only when a panel was first shown — so on the long Feeds panel the swap landed mid-scroll, growing row heights and making the scrollbar thumb balloon then snap (`scrollHeight` jumped ~44px). A startup `warmUiFonts()` now preloads the faces so the modal opens at final height, and `package.json` `build.files` ships `fonts/`. The app no longer makes any external network request for UI fonts.
 
 ---
 
