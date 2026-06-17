@@ -1047,6 +1047,17 @@ function createWindow() {
           },
         },
         {
+          label: 'Open File by Path…',
+          accelerator: 'CmdOrCtrl+Shift+O',
+          click: () => {
+            // The main renderer turns this into a viewer:openPrompt call (it has
+            // the active ptyId); the prompt is its own always-on-top window.
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('menu:openByPath');
+            }
+          },
+        },
+        {
           label: 'Cycle Windows',
           accelerator: 'CmdOrCtrl+`',
           click: () => _cycleWindowFocus(),
@@ -1091,6 +1102,8 @@ function createWindow() {
     mainWindow = null;
     try { diffWindowModule.closeDiffWindow(); } catch {}
     try { planWindowModule.closePlanWindow(); } catch {}
+    try { fileViewerWindowModule.closeAllFileViewerWindows(); } catch {}
+    try { promptWindowModule.closePromptWindow(); } catch {}
   });
 }
 
@@ -2058,6 +2071,9 @@ const remoteSource = require('./claude-diff/remoteSource');
 const processWalk = require('./claude-diff/processWalk');
 const diffWindowModule = require('./windows/diffWindow');
 const planWindowModule = require('./windows/planWindow');
+const fileViewerWindowModule = require('./windows/fileViewerWindow');
+const promptWindowModule = require('./windows/promptWindow');
+const viewerResolve = require('./claude-diff/viewerResolve');
 
 // Single popup-owned binding + state. Re-bind on session pick.
 const _diffRuntime = {
@@ -2186,6 +2202,207 @@ async function _resolveTabContext(ptyId) {
   return { scope: 'remote', cwd: null, ssh, connectOpts, remoteKey, hostLabel, tabSession: null };
 }
 
+// ── Open-File-by-Path viewer ───────────────────────────────────────────────
+// Per-window resolved content, keyed by the popup's webContents.id. The popup
+// pulls this on boot via 'viewer:getContent'.
+const _viewerContent = new Map();
+
+// Decide whether to read locally or over SSH, and what cwd relative paths
+// resolve against. 'local' source forces local (cwd = app process cwd).
+// Otherwise reuse the active terminal's detected Claude context.
+async function _resolveViewerContext({ source, ptyId }) {
+  if (source === 'local') {
+    return { isRemote: false, cwd: process.cwd(), hostLabel: 'local' };
+  }
+  const ctx = await _resolveTabContext(ptyId);
+  if (ctx.scope === 'remote') {
+    if (!ctx.connectOpts || ctx.connectOpts.authError) {
+      throw new Error((ctx.connectOpts && ctx.connectOpts.authError) || 'Remote context unavailable.');
+    }
+    const handle = await _getRemoteHandle(ctx.connectOpts);
+    let cwd = null;
+    try { cwd = await remoteSource.probeRemoteClaudeCwd(handle); } catch (_) {}
+    if (!cwd) { try { cwd = await remoteSource.resolveRemoteHome(handle); } catch (_) {} }
+    return { isRemote: true, handle, cwd, hostLabel: ctx.hostLabel };
+  }
+  // Auto + local: resolve relative paths against the terminal's Claude cwd.
+  // If no cwd was detected (no terminal / no running claude), leave it null so a
+  // relative path surfaces the friendly "needs a working directory" error from
+  // resolveViewerPath while absolute paths still work. (Explicit source==='local'
+  // above intentionally falls back to the app process cwd.)
+  return { isRemote: false, cwd: ctx.cwd || null, hostLabel: 'local' };
+}
+
+// MIME lookup for inline images. Reuses the WebDAV image map and adds SVG
+// (which is text but renders as an image).
+function _viewerImageMime(resolved) {
+  const dot = resolved.lastIndexOf('.');
+  const ext = dot >= 0 ? resolved.slice(dot).toLowerCase() : '';
+  if (ext === '.svg') return 'image/svg+xml';
+  return WEBDAV_BINARY_IMAGE_EXT_TO_MIME[ext] || 'application/octet-stream';
+}
+
+async function _readViewerFile({ inputPath, source, ptyId }) {
+  const cx = await _resolveViewerContext({ source, ptyId });
+  const resolved = viewerResolve.resolveViewerPath({ inputPath, cwd: cx.cwd, isRemote: cx.isRemote });
+  const fileType = viewerResolve.classifyViewerFileType(resolved);
+  if (fileType === 'pdf') throw new Error('PDF files are not supported by the file viewer.');
+
+  const base = {
+    path: resolved,
+    fileName: (cx.isRemote ? path.posix.basename(resolved) : path.basename(resolved)) || resolved,
+    source: cx.isRemote ? 'remote' : 'local',
+    hostLabel: cx.hostLabel,
+    fileType,
+  };
+
+  // Images: read raw bytes (no binary reject, no utf8 decode) → base64 data URI.
+  if (fileType === 'image') {
+    let buf;
+    if (cx.isRemote) {
+      buf = await remoteSource.readRemoteFileBuffer(cx.handle, resolved);
+    } else {
+      let st;
+      try { st = fs.statSync(resolved); } catch (_) { throw new Error('File not found: ' + resolved); }
+      if (st.isDirectory()) throw new Error('Path is a directory, not a file.');
+      if (st.size > LARGE_FILE_MAX_BYTES) throw new Error('File too large (over 200 MB).');
+      buf = fs.readFileSync(resolved);
+    }
+    return { ...base, encoding: 'base64', mimeType: _viewerImageMime(resolved), content: buf.toString('base64') };
+  }
+
+  // Text types (html / markdown / plaintext): utf-8, with the binary reject.
+  let content;
+  if (cx.isRemote) {
+    content = await remoteSource.readRemoteFile(cx.handle, resolved); // utf-8 string
+    if (viewerResolve.looksBinary(content)) throw new Error('Not a text file.');
+  } else {
+    let st;
+    try { st = fs.statSync(resolved); } catch (_) { throw new Error('File not found: ' + resolved); }
+    if (st.isDirectory()) throw new Error('Path is a directory, not a file.');
+    if (st.size > LARGE_FILE_MAX_BYTES) throw new Error('File too large (over 200 MB).');
+    const buf = fs.readFileSync(resolved);
+    if (viewerResolve.looksBinary(buf)) throw new Error('Not a text file.');
+    content = buf.toString('utf-8');
+  }
+  return { ...base, content };
+}
+
+function _findWindowByWebContentsId(id) {
+  return BrowserWindow.getAllWindows().find((w) => !w.isDestroyed() && w.webContents.id === id) || null;
+}
+
+// Read a file and either replace an existing viewer window's content (in-place
+// "Open another…") or spawn a new viewer window. Returns { success } / throws.
+async function _openViewerFile({ path: inputPath, source, ptyId, targetWebContentsId }) {
+  const payload = await _readViewerFile({ inputPath, source, ptyId });
+
+  // Replace in place if a live target window was specified ("Open another…").
+  if (targetWebContentsId != null) {
+    const target = _findWindowByWebContentsId(targetWebContentsId);
+    if (target) {
+      _viewerContent.set(target.webContents.id, payload);
+      target.webContents.send('viewer:content', payload);
+      if (target.isMinimized()) target.restore();
+      target.focus();
+      return { success: true };
+    }
+  }
+
+  // Otherwise spawn a new viewer window.
+  const win = fileViewerWindowModule.createFileViewerWindow({
+    parentWindow: mainWindow,
+    loadSettings,
+    saveSettings,
+    onOpenDiff: _popupForwardOpenDiff,
+    onOpenPlan: _popupForwardOpenPlan,
+    onOpenByPath: _popupForwardOpenByPath,
+    onCycleFocus: _cycleWindowFocus,
+  });
+  // Capture the id up front: inside 'closed' the webContents is already
+  // destroyed, so `win.webContents.id` would throw "Object has been destroyed".
+  const wcId = win.webContents.id;
+  _viewerContent.set(wcId, payload);
+  win.on('closed', () => { _viewerContent.delete(wcId); });
+  return { success: true };
+}
+
+// Context for the currently-open prompt window: which terminal tab's Claude to
+// detect against, and (for "Open another…") which viewer window to replace.
+let _promptCtx = { ptyId: null, targetWebContentsId: null };
+
+// Open (or raise) the always-on-top path prompt window. The renderer passes the
+// active ptyId + optional target so the prompt itself stays context-free.
+ipcMain.handle('viewer:openPrompt', (_event, opts) => {
+  _promptCtx = {
+    ptyId: (opts && opts.ptyId) || null,
+    targetWebContentsId: (opts && opts.targetWebContentsId != null) ? opts.targetWebContentsId : null,
+  };
+  promptWindowModule.getOrCreatePromptWindow({ parentWindow: mainWindow });
+  return { success: true };
+});
+
+ipcMain.handle('prompt:detect', async () => {
+  try {
+    const ctx = await _resolveTabContext(_promptCtx.ptyId);
+    return { scope: ctx.scope, hostLabel: ctx.hostLabel, cwd: ctx.cwd || null };
+  } catch (err) {
+    return { scope: 'local', hostLabel: 'local', cwd: null, error: err.message || String(err) };
+  }
+});
+
+ipcMain.handle('prompt:submit', async (_event, data) => {
+  const { path: inputPath, source } = data || {};
+  try {
+    const res = await _openViewerFile({
+      path: inputPath,
+      source,
+      ptyId: _promptCtx.ptyId,
+      targetWebContentsId: _promptCtx.targetWebContentsId,
+    });
+    promptWindowModule.closePromptWindow();
+    return res;
+  } catch (err) {
+    return { success: false, error: err.message || String(err) };
+  }
+});
+
+ipcMain.handle('prompt:cancel', () => {
+  promptWindowModule.closePromptWindow();
+  return { success: true };
+});
+
+ipcMain.handle('viewer:getContent', (event) => {
+  return _viewerContent.get(event.sender.id) || null;
+});
+
+ipcMain.handle('viewer:reopen', (event) => {
+  const id = event.sender.id;
+  // Ask the main renderer to open the prompt window (it supplies the active
+  // ptyId); the prompt itself is a separate always-on-top window, so there's no
+  // need to raise the main window here.
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('viewer:prompt', { targetWebContentsId: id });
+  }
+  return { success: true };
+});
+
+ipcMain.handle('viewer:closeWindow', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win && !win.isDestroyed()) win.close();
+  return { success: true };
+});
+
+ipcMain.handle('viewer:togglePin', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win || win.isDestroyed()) return { pinned: false };
+  const next = !win.isAlwaysOnTop();
+  win.setAlwaysOnTop(next);
+  // Pin is per-window and session-only: NOT persisted, so every new viewer opens
+  // unpinned regardless of whether a previous one was pinned.
+  return { pinned: next };
+});
+
 function _diffPushUpdate(payload) {
   const win = diffWindowModule.getDiffWindow();
   if (!win || win.isDestroyed()) return;
@@ -2299,6 +2516,13 @@ function _popupForwardOpenPlan() {
     try { _planOpenWindow(); } catch (_) {}
   }
 }
+function _popupForwardOpenByPath() {
+  // Routes through the main renderer (which has the active ptyId) → the prompt
+  // opens as its own always-on-top window; no need to raise the main window.
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('menu:openByPath');
+  }
+}
 
 function _diffOpenWindow() {
   if (!mainWindow) return null;
@@ -2308,6 +2532,7 @@ function _diffOpenWindow() {
     saveSettings,
     onOpenDiff: _popupForwardOpenDiff,
     onOpenPlan: _popupForwardOpenPlan,
+    onOpenByPath: _popupForwardOpenByPath,
     onCycleFocus: _cycleWindowFocus,
   });
   return win;
@@ -2466,6 +2691,7 @@ function _planOpenWindow() {
     saveSettings,
     onOpenDiff: _popupForwardOpenDiff,
     onOpenPlan: _popupForwardOpenPlan,
+    onOpenByPath: _popupForwardOpenByPath,
     onCycleFocus: _cycleWindowFocus,
   });
 }

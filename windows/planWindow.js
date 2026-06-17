@@ -11,7 +11,7 @@ function getPlanWindow() {
   return winRef;
 }
 
-function getOrCreatePlanWindow({ parentWindow, loadSettings, saveSettings, onOpenDiff, onOpenPlan, onCycleFocus }) {
+function getOrCreatePlanWindow({ parentWindow, loadSettings, saveSettings, onOpenDiff, onOpenPlan, onOpenByPath, onCycleFocus }) {
   if (winRef && !winRef.isDestroyed()) {
     if (winRef.isMinimized()) winRef.restore();
     winRef.show();
@@ -39,6 +39,7 @@ function getOrCreatePlanWindow({ parentWindow, loadSettings, saveSettings, onOpe
     onClosed: () => { winRef = null; },
     onOpenDiff,
     onOpenPlan,
+    onOpenByPath,
     onCycleFocus,
   });
 

@@ -39,4 +39,14 @@ contextBridge.exposeInMainWorld('popupAPI', {
   onPlanNoBinding: (cb) => ipcRenderer.on('plan:noBinding', (_e, data) => cb(data)),
   planCloseWindow: () => ipcRenderer.invoke('plan:closeWindow'),
   planTogglePin: () => ipcRenderer.invoke('plan:togglePin'),
+
+  // --- File Viewer (Open File by Path) ---
+  viewerGetContent: () => ipcRenderer.invoke('viewer:getContent'),
+  viewerReopen: () => ipcRenderer.invoke('viewer:reopen'),
+  viewerCloseWindow: () => ipcRenderer.invoke('viewer:closeWindow'),
+  viewerTogglePin: () => ipcRenderer.invoke('viewer:togglePin'),
+  onViewerContent: (cb) => ipcRenderer.on('viewer:content', (_e, data) => cb(data)),
+  // Shortcut keys captured at the window level (works even when the HTML iframe
+  // has focus). The renderer is the single key handler for the viewer.
+  onViewerKey: (cb) => ipcRenderer.on('viewer:key', (_e, data) => cb(data)),
 });

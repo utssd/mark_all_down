@@ -248,7 +248,6 @@ g & h & i
   function isEditorSubMode(subMode) {
     return currentMode === 'editor' && currentEditorSubMode === subMode;
   }
-  let mermaidRenderCounter = 0;
 
   let latexZoom = 1;
   let latexPanX = 0;
@@ -1163,7 +1162,10 @@ You can also use reference-style links:
       return;
     }
 
-    mermaidRenderCounter = 0;
+    // NOTE: the mermaid-id counter now lives inside render/markdown-render.js
+    // (incremented by the shared marked renderer). It is intentionally NOT reset
+    // here — monotonic ids are collision-free; do not re-add a reset that would
+    // reach into module-private state.
     await ensureMermaid();
     mermaid.initialize({
       startOnLoad: false,
@@ -1252,232 +1254,26 @@ ${content}
   //  Markdown Reader
   // ════════════════════════════════════════════
 
-  // ── Marked configuration with mermaid block support ──
-
-  const markedRenderer = new marked.Renderer();
-  markedRenderer.code = function (token) {
-    const text = typeof token?.text === 'string' ? token.text : '';
-    const lang = typeof token?.lang === 'string' ? token.lang : '';
-    if (lang === 'mermaid') {
-      mermaidRenderCounter++;
-      const containerId = `md-mermaid-${mermaidRenderCounter}`;
-      return `<div class="mermaid-block" data-mermaid-id="${containerId}" data-mermaid-src="${encodeURIComponent(text)}"></div>`;
-    }
-    if (lang === 'mindmap-viz') {
-      return `<div class="mindmap-viz-block" data-viz-json="${encodeURIComponent(text)}"></div>`;
-    }
-    const escaped = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-    const langClass = lang ? ` class="language-${lang}"` : '';
-    return `<pre><code${langClass}>${escaped}</code></pre>`;
-  };
-  marked.setOptions({
-    gfm: true,
-    breaks: false,
-    renderer: markedRenderer,
+  // Initialize the shared markdown render pipeline with this window's config.
+  window.MadMarkdownRender.init({
+    getStripFrontMatter: () => _stripFrontMatter,
+    getTheme: () => themeSelect.value,
+    thresholds: { progressive: RENDER_PROGRESSIVE_THRESHOLD, virtual: RENDER_VIRTUAL_THRESHOLD },
+    renderMindmapVizBlocks: (el) => renderMindmapVizBlocks(el),
   });
 
-  // ── Math (LaTeX) extraction / restoration for Markdown rendering ──
-  // Pre-process: pull math out before marked.parse() to prevent mangling.
-  // Post-process: render each block with KaTeX and splice back into HTML.
-
-  function extractMath(markdown) {
-    const blocks = []; // { placeholder, src, display }
-    let id = 0;
-    const ph = () => `MATHPH${id++}ENDMATHPH`;
-
-    // First, protect fenced code blocks and inline code spans so we don't
-    // touch math-like syntax inside them.
-    const codeSpans = [];
-    let safe = markdown.replace(/```[\s\S]*?```|`[^`\n]+`/g, (m) => {
-      const idx = codeSpans.length;
-      codeSpans.push(m);
-      return `CODEPH${idx}ENDCODEPH`;
-    });
-
-    // Display math (order matters — match multi-char delimiters first)
-    // $$...$$
-    safe = safe.replace(/\$\$([\s\S]+?)\$\$/g, (_m, src) => {
-      const p = ph();
-      blocks.push({ placeholder: p, src, display: true });
-      return p;
-    });
-    // \[...\]
-    safe = safe.replace(/\\\[([\s\S]+?)\\\]/g, (_m, src) => {
-      const p = ph();
-      blocks.push({ placeholder: p, src, display: true });
-      return p;
-    });
-
-    // Inline math
-    // \(...\)
-    safe = safe.replace(/\\\(([\s\S]+?)\\\)/g, (_m, src) => {
-      const p = ph();
-      blocks.push({ placeholder: p, src, display: false });
-      return p;
-    });
-    // $...$  (single line, not preceded/followed by $)
-    safe = safe.replace(/(?<!\$)\$(?!\$)([^\n$]+?)\$(?!\$)/g, (_m, src) => {
-      const p = ph();
-      blocks.push({ placeholder: p, src, display: false });
-      return p;
-    });
-
-    // Restore code spans / fences
-    safe = safe.replace(/CODEPH(\d+)ENDCODEPH/g, (_m, idx) => codeSpans[+idx]);
-
-    return { cleaned: safe, blocks };
-  }
-
-  function restoreMath(html, blocks) {
-    if (!blocks.length) return html;
-    for (const b of blocks) {
-      const rendered = renderMathBlock(b.src, b.display);
-      html = html.replace(b.placeholder, rendered);
-    }
-    return html;
-  }
-
-  function renderMathBlock(src, display) {
-    try {
-      return katex.renderToString(src, {
-        displayMode: display,
-        throwOnError: false,
-        output: 'html',
-      });
-    } catch (_e) {
-      const escaped = src.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      return `<code class="katex-error">${escaped}</code>`;
-    }
-  }
-
-  async function renderMermaidBlocks(container) {
-    container = container || markdownBody;
-    const blocks = container.querySelectorAll('.mermaid-block');
-    for (const block of blocks) {
-      const src = decodeURIComponent(block.dataset.mermaidSrc);
-      const id = block.dataset.mermaidId;
-      try {
-        const { svg } = await mermaid.render(id, src);
-        block.innerHTML = svg;
-        block.classList.add('mermaid-block-rendered');
-      } catch (err) {
-        block.innerHTML = `<pre class="mermaid-error">Mermaid error: ${err.message || err}</pre>`;
-        const badEl = document.getElementById(id);
-        if (badEl) badEl.remove();
-      }
-    }
-  }
-
-  function maybeStripFrontMatter(content) {
-    if (!_stripFrontMatter) return content;
-    // YAML front matter (--- ... ---)
-    let m = content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/);
-    if (m) return content.slice(m[0].length);
-    // TOML front matter (+++ ... +++)
-    m = content.match(/^\+\+\+\r?\n[\s\S]*?\r?\n\+\+\+\r?\n?/);
-    if (m) return content.slice(m[0].length);
-    return content;
-  }
-
-  async function renderMarkdownProgressive(content, targetEl) {
-    targetEl = targetEl || markdownBody;
-    targetEl.innerHTML = '';
-    mermaidRenderCounter = 0;
-
-    const stripped = maybeStripFrontMatter(content);
-    const { cleaned, blocks: mathBlocks } = extractMath(stripped);
-    if (mathBlocks.length) await ensureKatex();
-
-    // Split at double-newline (paragraph/block boundaries)
-    const blocks = cleaned.split(/\n{2,}/);
-    const BATCH_SIZE = 20;
-
-    // First batch: render immediately for fast first paint
-    const firstBatch = blocks.slice(0, BATCH_SIZE).join('\n\n');
-    let firstHtml = marked.parse(firstBatch);
-    firstHtml = restoreMath(firstHtml, mathBlocks);
-    targetEl.innerHTML = firstHtml;
-
-    // Remaining batches via requestIdleCallback
-    let offset = BATCH_SIZE;
-    while (offset < blocks.length) {
-      await new Promise((resolve) => {
-        (window.requestIdleCallback || ((cb) => setTimeout(cb, 16)))(resolve);
-      });
-
-      const batch = blocks.slice(offset, offset + BATCH_SIZE).join('\n\n');
-      let batchHtml = marked.parse(batch);
-      batchHtml = restoreMath(batchHtml, mathBlocks);
-      const fragment = document.createElement('div');
-      fragment.innerHTML = batchHtml;
-
-      while (fragment.firstChild) {
-        targetEl.appendChild(fragment.firstChild);
-      }
-      offset += BATCH_SIZE;
-    }
-
-    // Render Mermaid blocks only for files under 5MB
-    if (content.length < RENDER_VIRTUAL_THRESHOLD) {
-      await ensureMermaid();
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: 'dark',
-        securityLevel: 'loose',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      });
-      await renderMermaidBlocks(targetEl);
-    }
-    renderMindmapVizBlocks(targetEl);
-  }
-
-  async function renderMarkdown(content, targetEl) {
-    targetEl = targetEl || markdownBody;
-
-    if (content && content.length > RENDER_PROGRESSIVE_THRESHOLD) {
-      return renderMarkdownProgressive(content, targetEl);
-    }
-
-    mermaidRenderCounter = 0;
-
-    await ensureMermaid();
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: 'dark',
-      securityLevel: 'loose',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    });
-
-    const stripped = maybeStripFrontMatter(content);
-    const { cleaned, blocks: mathBlocks } = extractMath(stripped);
-    if (mathBlocks.length) await ensureKatex();
-    let html = marked.parse(cleaned);
-    html = restoreMath(html, mathBlocks);
-
-    const renderTarget = document.createElement('div');
-    renderTarget.innerHTML = html;
-
-    await renderMermaidBlocks(renderTarget);
-    targetEl.innerHTML = renderTarget.innerHTML;
-    renderMindmapVizBlocks(targetEl);
-  }
-
-  function renderPlainText(content, targetEl) {
-    targetEl = targetEl || markdownBody;
-    if (!content) {
-      targetEl.innerHTML = '<pre class="reader-plaintext"><code>(empty file)</code></pre>';
-      return;
-    }
-    const escaped = content
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-    targetEl.innerHTML = '<pre class="reader-plaintext"><code>' + escaped + '</code></pre>';
-  }
+  // ── Marked / Markdown rendering now lives in render/markdown-render.js ──
+  // Thin local aliases keep the ~existing call sites working unchanged.
+  const renderMarkdown = (content, targetEl) =>
+    window.MadMarkdownRender.renderMarkdown(content, targetEl || markdownBody);
+  const renderMarkdownProgressive = (content, targetEl) =>
+    window.MadMarkdownRender.renderMarkdownProgressive(content, targetEl || markdownBody);
+  const renderPlainText = (content, targetEl) =>
+    window.MadMarkdownRender.renderPlainText(content, targetEl || markdownBody);
+  const extractMath = (md) => window.MadMarkdownRender.extractMath(md);
+  const restoreMath = (html, blocks) => window.MadMarkdownRender.restoreMath(html, blocks);
+  const maybeStripFrontMatter = (content) => window.MadMarkdownRender.maybeStripFrontMatter(content);
+  const renderMermaidBlocks = (el) => window.MadMarkdownRender.renderMermaidBlocks(el || markdownBody);
 
   function _cancelPdfRenderTasks(pdf) {
     const tracked = pdf && pdf._madRenderTasks;
@@ -4386,6 +4182,26 @@ ${content}
   openFromWebdavModal.addEventListener('click', (e) => {
     if (e.target === openFromWebdavModal) closeOpenFromWebdavModal();
   });
+
+  // ── Open File by Path ──
+  // The prompt is its own always-on-top window (created in the main process). We
+  // only forward the trigger with the active terminal's ptyId so "Auto" source
+  // detection targets the right Claude session; an optional targetWebContentsId
+  // routes an in-place "Open another…" back to a specific viewer window.
+  function openPathPrompt({ targetWebContentsId } = {}) {
+    if (!(window.electronAPI && window.electronAPI.openPromptWindow)) return;
+    window.electronAPI.openPromptWindow({
+      ptyId: _activePtyIdForClaudeViewer(),
+      targetWebContentsId: targetWebContentsId != null ? targetWebContentsId : null,
+    });
+  }
+
+  if (window.electronAPI && window.electronAPI.onMenuOpenByPath) {
+    window.electronAPI.onMenuOpenByPath(() => openPathPrompt({ targetWebContentsId: null }));
+  }
+  if (window.electronAPI && window.electronAPI.onViewerPrompt) {
+    window.electronAPI.onViewerPrompt((data) => openPathPrompt({ targetWebContentsId: data && data.targetWebContentsId }));
+  }
 
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;

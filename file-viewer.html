@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>File Viewer</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="./node_modules/katex/dist/katex.min.css" />
+  <style>
+    html, body { height: 100%; margin: 0; background: #0d1117; color: #e6edf3; }
+    .viewer-header { display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+      border-bottom: 1px solid #21262d; background: #161b22; position: sticky; top: 0; z-index: 5; }
+    .viewer-title { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; flex: 1; }
+    .viewer-host-badge { font-size: 11px; color: #7d8590; border: 1px solid #30363d; border-radius: 10px;
+      padding: 1px 8px; }
+    .viewer-actions { display: flex; gap: 6px; }
+    .viewer-actions button { background: #21262d; color: #e6edf3; border: 1px solid #30363d;
+      border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+    .viewer-actions button:hover { background: #30363d; }
+    .viewer-body { padding: 20px 28px; overflow: auto; height: calc(100% - 42px); }
+    .viewer-body.empty { display: flex; align-items: center; justify-content: center; color: #7d8590; }
+    .viewer-error { color: #f85149; padding: 24px 28px; white-space: pre-wrap; }
+    pre.reader-plaintext { white-space: pre; overflow-x: auto; }
+    /* Image view: no markdown-body padding; center, fit width. */
+    .viewer-body.viewer-media { padding: 0; }
+    .viewer-image { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+    /* Raw HTML view: sandboxed iframe filling the body. The file renders with its
+       own styling; white default avoids a dark frame behind light content. */
+    .viewer-html { border: 0; width: 100%; height: 100%; background: #fff; }
+    /* Rendered HTML view: shadow-DOM host filling the body. */
+    .viewer-html-host { display: block; }
+  </style>
+</head>
+<body>
+  <header class="viewer-header">
+    <span class="viewer-title" id="viewer-title">File Viewer</span>
+    <span class="viewer-host-badge" id="viewer-host" hidden></span>
+    <div class="viewer-actions">
+      <button id="btn-viewer-latex" title="Render the HTML with scripts applied (LaTeX math + Mermaid diagrams)" hidden>∑ Render scripts</button>
+      <button id="btn-viewer-reopen" title="Open another file in this window (o)">↻ Open another… (o)</button>
+      <button id="btn-viewer-pin" title="Keep window on top (p)">Pin (p)</button>
+    </div>
+  </header>
+  <main class="viewer-body empty markdown-body" id="viewer-body" tabindex="0">Loading…</main>
+
+  <script src="./node_modules/marked/lib/marked.umd.js"></script>
+  <script src="render/markdown-render.js"></script>
+  <script src="file-viewer-renderer.js"></script>
+</body>
+</html>

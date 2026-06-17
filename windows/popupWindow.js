@@ -33,6 +33,7 @@ function createPopupWindow({
   onClosed,
   onOpenDiff,
   onOpenPlan,
+  onOpenByPath,
   onCycleFocus,
 }) {
   const { screen } = require('electron');
@@ -63,7 +64,7 @@ function createPopupWindow({
   // CmdOrCtrl+` accelerators fire while this popup has focus. Without it,
   // Electron routes the keypress to the (empty) menu of the focused window
   // and nothing else.
-  if (onOpenDiff || onOpenPlan || onCycleFocus) {
+  if (onOpenDiff || onOpenPlan || onCycleFocus || onOpenByPath) {
     const localMenu = Menu.buildFromTemplate([
       {
         label: 'Claude',
@@ -79,6 +80,12 @@ function createPopupWindow({
             accelerator: 'CmdOrCtrl+Shift+P',
             visible: false,
             click: () => { if (onOpenPlan) try { onOpenPlan(); } catch (_) {} },
+          },
+          {
+            label: 'Open File by Path',
+            accelerator: 'CmdOrCtrl+Shift+O',
+            visible: false,
+            click: () => { if (onOpenByPath) try { onOpenByPath(); } catch (_) {} },
           },
           {
             label: 'Cycle Windows',

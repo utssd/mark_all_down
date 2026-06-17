@@ -287,6 +287,15 @@ A live-watched Markdown pane for the plan file Claude Code writes when you're in
 - **Full Markdown rendering.** Headings, lists, tables, code blocks, Mermaid diagrams, and KaTeX math all render with the same pipeline as the Reader tab.
 - **Works over SSH** too: plan files on a remote host are watched over the SSH connection.
 
+### Open File by Path — `Ctrl+Shift+O`
+
+A general-purpose, read-only popup for viewing **any** file by path — handy when Claude Code (or anything else) drops a result file somewhere and you just want to read it without importing it into a tab.
+
+- **Paste a path** (relative or absolute) into the prompt — a small **always-on-top window** that rises above every other window (reader, diff, plan, and even pinned viewer popups) so it's never hidden behind what you're reading. It closes once the file opens.
+- **Auto-detects the source** from the active terminal's Claude session: a **local** path is read from disk, and if Claude is in an **SSH** session the file is read from that host over SFTP. A **Local** override forces this computer. Relative paths resolve against Claude's working directory.
+- **Renders Markdown** (Mermaid + KaTeX math) with the same pipeline as the Reader, shows **images** inline (`.png .jpg .gif .webp .svg …`), and renders **`.html`** in a sandboxed iframe (HTML+CSS only, no script execution). HTML files also get a **∑ LaTeX** button that switches to an inline rendered view with KaTeX math (`$…$` / `$$…$$`); that view strips scripts/handlers first. Other text/code shows as monospace.
+- **Multiple windows** at once (each opens unpinned); each has **Open another…** (`o`) to load a different file in place, **Pin** (`p`) to keep it on top, and `Esc` to close. These keys work in every view, including HTML.
+
 ### Cycle windows — `` Ctrl+` ``
 
 Rotates focus through Main → Diff → Plan → Main. Closed or destroyed windows are skipped automatically. Handy when you have all three open and want to glance at one without reaching for the mouse.
@@ -307,16 +316,20 @@ No telemetry, no cloud calls — these windows read Claude Code's local session 
 
 | Shortcut          | Action              |
 | ----------------- | ------------------- |
-| `Ctrl+O`          | Open local file     |
-| `Ctrl+Shift+O`    | Open remote file    |
-| `Ctrl+S`          | Save                |
-| `Ctrl+F`          | Find in document    |
-| `Ctrl+Shift+T`    | New terminal tab    |
-| `Ctrl+Shift+W`    | Close terminal tab  |
-| `Ctrl+PageUp/Dn`  | Switch tabs         |
-| `Ctrl+Shift+D`    | Claude Diff Viewer  |
-| `Ctrl+Shift+P`    | Claude Plan Viewer  |
-| `` Ctrl+` ``      | Cycle windows       |
+| `Ctrl+O`          | Open local file       |
+| `Ctrl+Shift+O`    | Open File by Path     |
+| `Ctrl+S`          | Save                  |
+| `Ctrl+F`          | Find in document      |
+| `Ctrl+Shift+T`    | New terminal tab      |
+| `Ctrl+Shift+W`    | Close terminal tab    |
+| `Ctrl+PageUp/Dn`  | Switch tabs           |
+| `Ctrl+Shift+D`    | Claude Diff Viewer    |
+| `Ctrl+Shift+P`    | Claude Plan Viewer    |
+| `` Ctrl+` ``      | Cycle windows         |
+| `o` / `p` / `Esc` | (in a viewer) open another / pin / close |
+
+> **Open Remote…** (browse a WebDAV server) lives in the **File** menu — it has no
+> keyboard accelerator (`Ctrl+Shift+O` opens the File-by-Path viewer).
 
 ---
 
