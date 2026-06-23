@@ -90,8 +90,9 @@ module.exports = [
     rules: sharedRules,
   },
   {
-    // Renderer process (browser context)
-    files: ['app.js'],
+    // Renderer process (browser context): main window + shared render module +
+    // pop-up renderers, all loaded as plain <script> globals.
+    files: ['app.js', 'render/**/*.js', 'file-viewer-renderer.js', 'prompt-renderer.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',

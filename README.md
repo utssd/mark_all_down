@@ -287,6 +287,15 @@ A live-watched Markdown pane for the plan file Claude Code writes when you're in
 - **Full Markdown rendering.** Headings, lists, tables, code blocks, Mermaid diagrams, and KaTeX math all render with the same pipeline as the Reader tab.
 - **Works over SSH** too: plan files on a remote host are watched over the SSH connection.
 
+### Open File by Path — `Ctrl+Shift+O`
+
+A general-purpose, read-only popup for viewing **any** file by path — handy when Claude Code (or anything else) drops a result file somewhere and you just want to read it without importing it into a tab.
+
+- **Paste a path** (relative or absolute) into the prompt — a small **always-on-top window** that rises above every other window (reader, diff, plan, and even pinned viewer popups) so it's never hidden behind what you're reading. It closes once the file opens.
+- **Auto-detects the source** from the active terminal's Claude session: a **local** path is read from disk, and if Claude is in an **SSH** session the file is read from that host over SFTP. A **Local** override forces this computer. Relative paths resolve against Claude's working directory.
+- **Renders Markdown** (Mermaid + KaTeX math) with the same pipeline as the Reader, shows **images** inline (`.png .jpg .gif .webp .svg …`), and renders **`.html`** in a sandboxed iframe (HTML+CSS only, no script execution). HTML files also get a **∑ LaTeX** button that switches to an inline rendered view with KaTeX math (`$…$` / `$$…$$`); that view strips scripts/handlers first. Other text/code shows as monospace.
+- **Multiple windows** at once (each opens unpinned); each has **Open another…** (`o`) to load a different file in place, **Pin** (`p`) to keep it on top, and `Esc` to close. These keys work in every view, including HTML.
+
 ### Cycle windows — `` Ctrl+` ``
 
 Rotates focus through Main → Diff → Plan → Main. Closed or destroyed windows are skipped automatically. Handy when you have all three open and want to glance at one without reaching for the mouse.
@@ -307,16 +316,20 @@ No telemetry, no cloud calls — these windows read Claude Code's local session 
 
 | Shortcut          | Action              |
 | ----------------- | ------------------- |
-| `Ctrl+O`          | Open local file     |
-| `Ctrl+Shift+O`    | Open remote file    |
-| `Ctrl+S`          | Save                |
-| `Ctrl+F`          | Find in document    |
-| `Ctrl+Shift+T`    | New terminal tab    |
-| `Ctrl+Shift+W`    | Close terminal tab  |
-| `Ctrl+PageUp/Dn`  | Switch tabs         |
-| `Ctrl+Shift+D`    | Claude Diff Viewer  |
-| `Ctrl+Shift+P`    | Claude Plan Viewer  |
-| `` Ctrl+` ``      | Cycle windows       |
+| `Ctrl+O`          | Open local file       |
+| `Ctrl+Shift+O`    | Open File by Path     |
+| `Ctrl+S`          | Save                  |
+| `Ctrl+F`          | Find in document      |
+| `Ctrl+Shift+T`    | New terminal tab      |
+| `Ctrl+Shift+W`    | Close terminal tab    |
+| `Ctrl+PageUp/Dn`  | Switch tabs           |
+| `Ctrl+Shift+D`    | Claude Diff Viewer    |
+| `Ctrl+Shift+P`    | Claude Plan Viewer    |
+| `` Ctrl+` ``      | Cycle windows         |
+| `o` / `p` / `Esc` | (in a viewer) open another / pin / close |
+
+> **Open Remote…** (browse a WebDAV server) lives in the **File** menu — it has no
+> keyboard accelerator (`Ctrl+Shift+O` opens the File-by-Path viewer).
 
 ---
 
@@ -329,6 +342,7 @@ No telemetry, no cloud calls — these windows read Claude Code's local session 
 - RSS reader no longer re-sanitizes already-known articles on every refresh; only newly seen GUIDs run through the sanitizer.
 - `install-linux.sh` now walks up from MAD helper PIDs through Electron / MarkAllDown ancestors, so dev-mode (`npm start`) main processes are also cleaned up during stale-instance shutdown.
 - README documents the local and remote (CI tag) release flows.
+- Self-hosted the Settings UI fonts (Onest, JetBrains Mono, IBM Plex) under `fonts/` as local woff2 with `font-display: block`, replacing the Google Fonts `<link>` in `index.html`. The CDN load used `display=swap`, and because the Settings panes live in `display:none` containers the fonts were fetched only when a panel was first shown — so on the long Feeds panel the swap landed mid-scroll, growing row heights and making the scrollbar thumb balloon then snap (`scrollHeight` jumped ~44px). A startup `warmUiFonts()` now preloads the faces so the modal opens at final height, and `package.json` `build.files` ships `fonts/`. The app no longer makes any external network request for UI fonts.
 
 ---
 

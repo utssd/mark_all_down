@@ -26,6 +26,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readPdfFile: (filePath) => ipcRenderer.invoke('dialog:readPdfFile', filePath),
   readFileConfirmed: (filePath) => ipcRenderer.invoke('dialog:readFileConfirmed', filePath),
 
+  // --- Open File by Path viewer ---
+  // Opens the always-on-top prompt window (ctx carries the active ptyId + an
+  // optional targetWebContentsId for in-place "Open another…").
+  openPromptWindow: (ctx) => ipcRenderer.invoke('viewer:openPrompt', ctx || {}),
+  onMenuOpenByPath: (callback) => ipcRenderer.on('menu:openByPath', () => callback()),
+  onViewerPrompt: (callback) => ipcRenderer.on('viewer:prompt', (_e, data) => callback(data)),
+
   onMenuFind: (callback) => ipcRenderer.on('menu:find', callback),
 
   loadPage: (data) => ipcRenderer.invoke('pages:loadPage', data),

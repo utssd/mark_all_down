@@ -18,10 +18,11 @@
     <!-- pdf.js viewer -->
     <link rel="stylesheet" href="./node_modules/pdfjs-dist/web/pdf_viewer.css" />
 
-    <!-- Google Fonts for Agents "Instrument Panel" settings UI -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500;600&family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap" />
+    <!-- Self-hosted UI fonts (Onest, JetBrains Mono, IBM Plex) — bundled locally
+         so they are present at first paint. Previously loaded from Google Fonts
+         with display=swap, whose post-paint swap grew row heights and made the
+         Settings scrollbar resize mid-scroll. Loaded before style.css. -->
+    <link rel="stylesheet" href="fonts/fonts.css" />
 
     <link rel="stylesheet" href="style.css" />
 
@@ -1576,6 +1577,8 @@ graph LR
       </div>
     </div>
 
+    <!-- ═══ Open File by Path ═══ -->
+
     <!-- ═══ Find Bar ═══ -->
 
     <div id="find-bar" class="find-bar hidden">
@@ -1653,6 +1656,9 @@ graph LR
 
     <!-- Marked -->
     <script src="./node_modules/marked/lib/marked.umd.js"></script>
+
+    <!-- Shared markdown render pipeline (used by Reader + file-viewer popup) -->
+    <script src="render/markdown-render.js"></script>
 
     <!-- D3.js (for MindMap visualization) -->
     <script src="./node_modules/d3/dist/d3.min.js"></script>

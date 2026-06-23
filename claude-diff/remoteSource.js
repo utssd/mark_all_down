@@ -115,6 +115,27 @@ function sftpReadAll(sftp, p) {
   });
 }
 
+// Like sftpReadAll but resolves the RAW Buffer (no utf8 decode) — used for
+// binary files such as images, where decoding would corrupt the bytes.
+function sftpReadAllBuffer(sftp, p) {
+  return new Promise((resolve, reject) => {
+    sftp.stat(p, (serr, stats) => {
+      if (serr) return reject(serr);
+      const size = stats.size || 0;
+      sftp.open(p, 'r', (oerr, handle) => {
+        if (oerr) return reject(oerr);
+        if (size === 0) { sftp.close(handle, () => {}); return resolve(Buffer.alloc(0)); }
+        const buf = Buffer.alloc(size);
+        sftp.read(handle, buf, 0, size, 0, (rerr, bytesRead) => {
+          sftp.close(handle, () => {});
+          if (rerr && rerr.code !== 1) return reject(rerr);
+          resolve(buf.slice(0, bytesRead || 0));
+        });
+      });
+    });
+  });
+}
+
 // Incremental read starting at `cursor` for up to `size - cursor` bytes.
 function sftpReadRange(sftp, p, cursor, endSize) {
   return new Promise((resolve, reject) => {
@@ -620,6 +641,11 @@ function readRemoteFile(handle, path) {
   return sftpReadAll(handle.sftp, path);
 }
 
+// Raw-bytes variant for binary files (e.g. images) — returns a Buffer.
+function readRemoteFileBuffer(handle, path) {
+  return sftpReadAllBuffer(handle.sftp, path);
+}
+
 // Poll stat every `intervalMs`; when size grows, emit the appended slice as
 // raw text. Matches localSource.watchSession's semantics for JSONL tailing.
 function watchRemoteFile(handle, path, { onData, onError, onRemoved, intervalMs = WATCH_POLL_MS } = {}) {
@@ -715,6 +741,7 @@ module.exports = {
   listRemotePlans,
   listRemotePlansForSession,
   readRemoteFile,
+  readRemoteFileBuffer,
   watchRemoteFile,
   watchRemotePlan,
   projectEncodedName,
