@@ -2769,8 +2769,13 @@ body {
   color: var(--text-secondary);
   flex-shrink: 0;
 }
-.terminal-warning-action {
+.terminal-warning-actions {
   margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.terminal-warning-action {
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 600;
@@ -2783,6 +2788,10 @@ body {
 .terminal-warning-action:hover {
   background: var(--bg-elevated, var(--bg-surface));
   border-color: var(--text-secondary);
+}
+.terminal-warning-action.secondary {
+  color: var(--text-secondary);
+  background: transparent;
 }
 
 /* ── Terminal Main Area ── */

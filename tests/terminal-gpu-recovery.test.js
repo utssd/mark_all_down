@@ -22,22 +22,32 @@ test('GPU process death surfaces a reload banner instead of attempting in-proces
   // preload.js exposes onGpuProcessGone over the gpu:process-gone IPC
   assert.match(preload, /onGpuProcessGone:\s*\(cb\)\s*=>\s*ipcRenderer\.on\('gpu:process-gone'/);
 
-  // index.html declares the banner element with a Reload button
+  // index.html declares the banner element with Reload + Cancel buttons
   assert.match(html, /id="terminal-gpu-warning"/);
   assert.match(html, /id="terminal-gpu-reload-btn"/);
+  assert.match(html, /id="terminal-gpu-cancel-btn"/);
+  assert.match(html, /id="terminal-gpu-msg"/);
 
   // style.css ships banner styling (mirrors the existing .agents-warning pattern)
   assert.match(css, /\.terminal-warning\b/);
   assert.match(css, /\.terminal-warning-action\b/);
 
-  // app.js wires the banner: shows it on gpu:process-gone, reloads on button click
+  // app.js wires the banner and reacts to gpu:process-gone
   assert.match(app, /getElementById\('terminal-gpu-warning'\)/);
   assert.match(app, /getElementById\('terminal-gpu-reload-btn'\)/);
-  assert.match(app, /btnTerminalGpuReload\.addEventListener\('click',\s*\(\)\s*=>\s*window\.location\.reload\(\)\)/);
-  assert.match(
-    app,
-    /onGpuProcessGone\(\(details\)\s*=>\s*\{[\s\S]*terminalGpuWarning\.classList\.remove\('hidden'\)/
-  );
+  assert.match(app, /onGpuProcessGone\(/);
+
+  // GPU crash now auto-reloads with a cancelable countdown (the reattach feature
+  // makes a reload non-destructive to terminals), gated on the Terminal tab being
+  // active so an editing user isn't interrupted.
+  assert.match(app, /_startGpuReloadCountdown/);
+  assert.match(app, /currentMode === 'terminal'/);
+  // Deferred trigger: a crash on another tab arms recovery for the next switch.
+  assert.match(app, /_gpuRecoveryPending/);
+  // Anti-storm guard so a repeatedly-crashing GPU can't reload-loop.
+  assert.match(app, /gpuAutoReloadAt/);
+  // Reload still happens via window.location.reload (now behind the countdown).
+  assert.match(app, /window\.location\.reload\(\)/);
 
   // The old in-process repair scaffolding must be gone — it never worked once
   // the GPU process recycled and was misleading us about the recovery path.

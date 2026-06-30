@@ -337,7 +337,9 @@ g & h & i
   const btnTerminalNewTab = document.getElementById('btn-terminal-new-tab');
   const btnTerminalRestart = document.getElementById('btn-terminal-restart');
   const terminalGpuWarning = document.getElementById('terminal-gpu-warning');
+  const terminalGpuMsg = document.getElementById('terminal-gpu-msg');
   const btnTerminalGpuReload = document.getElementById('terminal-gpu-reload-btn');
+  const btnTerminalGpuCancel = document.getElementById('terminal-gpu-cancel-btn');
   const mdEditorPreviewEl = document.getElementById('md-editor-preview');
   const btnMdEditorDownloadHTML = document.getElementById('btn-md-editor-download-html');
   const mdEditorTabBar = document.getElementById('md-editor-tab-bar');
@@ -6580,6 +6582,13 @@ ${content}
   let _activeTermTabId = null;
   let _termTabCounter = 0;
   let _termInitialized = false;
+  // GPU-crash auto-reload state (wired in initTerminal). _gpuRecoveryPending is
+  // set when a GPU crash arrives while the Terminal tab is NOT active, so the
+  // countdown can start when the user later switches to it (_maybeStartGpuRecovery).
+  let _gpuRecoveryPending = false;
+  let _maybeStartGpuRecovery = () => {};
+  const GPU_AUTORELOAD_KEY = 'mad:gpuAutoReloadAt';
+  const GPU_AUTORELOAD_STORM_MS = 30000;
 
   // Called by applyFontSettings() to propagate font changes to existing terminals.
   // xterm.js snapshots font at creation; this updates them post-hoc.
@@ -7044,6 +7053,9 @@ ${content}
           if (tab.terminal) tab.terminal.focus();
         }, 0);
       }
+      // A GPU crash detected while another tab was active deferred its recovery
+      // countdown; the terminal is now visible, so start it.
+      _maybeStartGpuRecovery();
       return;
     }
 
@@ -7091,15 +7103,80 @@ ${content}
     });
 
     // GPU process death poisons xterm's process-wide texture atlas state in a
-    // way no in-process recovery has reliably fixed. Surface a banner that
-    // lets the user reload the renderer window — the only known full recovery.
+    // way no in-process recovery has reliably fixed. A window reload is the only
+    // known full recovery, and (since the reattach feature) it no longer kills
+    // the running shells — PTYs survive in the main process and the rebuilt
+    // renderer reattaches with their output replayed. So we auto-reload on a GPU
+    // crash, but only with a short countdown the user can cancel (the renderer
+    // has no autosave, so an unconditional reload could drop unsaved editor work)
+    // and only while the Terminal tab is active (don't yank the window out from
+    // under someone who is editing). A crash that arrives on another tab arms a
+    // pending flag; the countdown starts when they next open the Terminal tab.
+    let _gpuReloadTimer = null;
+    function _stampAndReload() {
+      try { sessionStorage.setItem(GPU_AUTORELOAD_KEY, String(Date.now())); } catch (_) {}
+      window.location.reload();
+    }
+    function _showGpuBannerManual(msg) {
+      if (terminalGpuWarning) terminalGpuWarning.classList.remove('hidden');
+      if (terminalGpuMsg) terminalGpuMsg.textContent = msg;
+      if (btnTerminalGpuCancel) btnTerminalGpuCancel.classList.add('hidden');
+    }
+    function _startGpuReloadCountdown() {
+      if (_gpuReloadTimer) return; // already counting down
+      // Anti-storm: if an auto-reload already fired moments ago, a GPU that keeps
+      // dying would loop us forever. Fall back to a manual banner instead.
+      let last = 0;
+      try { last = Number(sessionStorage.getItem(GPU_AUTORELOAD_KEY) || 0); } catch (_) {}
+      if (last && Date.now() - last < GPU_AUTORELOAD_STORM_MS) {
+        _gpuRecoveryPending = false;
+        _showGpuBannerManual('GPU process restarted again — click Reload now to recover terminals.');
+        return;
+      }
+      _gpuRecoveryPending = false;
+      if (terminalGpuWarning) terminalGpuWarning.classList.remove('hidden');
+      if (btnTerminalGpuCancel) btnTerminalGpuCancel.classList.remove('hidden');
+      let n = 5;
+      const tick = () => {
+        if (n <= 0) {
+          clearInterval(_gpuReloadTimer);
+          _gpuReloadTimer = null;
+          _stampAndReload();
+          return;
+        }
+        if (terminalGpuMsg) {
+          terminalGpuMsg.textContent = `GPU process restarted — reloading in ${n}s to recover terminals…`;
+        }
+        n--;
+      };
+      tick();
+      _gpuReloadTimer = setInterval(tick, 1000);
+    }
+    // Exposed so initTerminal() (run when the Terminal tab is opened) can start
+    // a deferred countdown that was armed while another tab was active.
+    _maybeStartGpuRecovery = () => {
+      if (_gpuRecoveryPending && !_gpuReloadTimer) _startGpuReloadCountdown();
+    };
     if (btnTerminalGpuReload) {
-      btnTerminalGpuReload.addEventListener('click', () => window.location.reload());
+      btnTerminalGpuReload.addEventListener('click', () => {
+        if (_gpuReloadTimer) { clearInterval(_gpuReloadTimer); _gpuReloadTimer = null; }
+        _stampAndReload();
+      });
+    }
+    if (btnTerminalGpuCancel) {
+      btnTerminalGpuCancel.addEventListener('click', () => {
+        if (_gpuReloadTimer) { clearInterval(_gpuReloadTimer); _gpuReloadTimer = null; }
+        _gpuRecoveryPending = false;
+        btnTerminalGpuCancel.classList.add('hidden');
+        if (terminalGpuMsg) terminalGpuMsg.textContent = 'GPU process restarted — click Reload now to recover terminals.';
+      });
     }
     if (window.electronAPI.onGpuProcessGone) {
       window.electronAPI.onGpuProcessGone((details) => {
-        console.warn('[xterm] GPU process gone; prompting user to reload window', details);
-        if (terminalGpuWarning) terminalGpuWarning.classList.remove('hidden');
+        console.warn('[xterm] GPU process gone; auto-recovering terminals', details);
+        _gpuRecoveryPending = true;
+        if (currentMode === 'terminal') _startGpuReloadCountdown();
+        else _showGpuBannerManual('GPU process restarted — open the Terminal tab to recover.');
       });
     }
 
@@ -7137,6 +7214,10 @@ ${content}
     } else {
       await createTermTab();
     }
+
+    // If a GPU crash arrived before the terminal was ever opened, recovery was
+    // deferred until first init — start the countdown now.
+    _maybeStartGpuRecovery();
   }
 
   btnTerminalRestart.addEventListener('click', async () => {

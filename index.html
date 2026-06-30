@@ -645,8 +645,11 @@ graph LR
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          <span>GPU process restarted &mdash; terminals stopped rendering glyphs. Reload the window to recover.</span>
-          <button class="terminal-warning-action" id="terminal-gpu-reload-btn" type="button">Reload window</button>
+          <span id="terminal-gpu-msg">GPU process restarted &mdash; terminals stopped rendering glyphs. Reload the window to recover.</span>
+          <span class="terminal-warning-actions">
+            <button class="terminal-warning-action secondary hidden" id="terminal-gpu-cancel-btn" type="button">Cancel</button>
+            <button class="terminal-warning-action" id="terminal-gpu-reload-btn" type="button">Reload now</button>
+          </span>
         </div>
       </div>
     </main>
