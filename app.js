@@ -6700,6 +6700,7 @@ ${content}
       if (newLabel && newLabel !== tab.label) {
         tab.label = newLabel;
         if (tab.shelfLabelEl) tab.shelfLabelEl.textContent = newLabel;
+        if (tab.ptyId) window.electronAPI.terminalSetLabel(tab.ptyId, newLabel);
       }
       renderTerminalSidebar();
     }
@@ -6798,6 +6799,7 @@ ${content}
     if (result.success) {
       tab.ptyId = result.ptyId;
       tab.spawned = true;
+      window.electronAPI.terminalSetLabel(tab.ptyId, tab.label);
       if (tab.containerEl) tab.containerEl.classList.remove('is-disconnected');
       if (tab.id === _activeTermTabId) btnTerminalRestart.classList.add('hidden');
       const dims = tab.fitAddon && tab.fitAddon.proposeDimensions();
@@ -7003,6 +7005,36 @@ ${content}
     await spawnTermTabPty(tab);
   }
 
+  // Rebuild a tab bound to a PTY that survived a window reload, replaying its
+  // buffered output. Unlike createTermTab it does NOT spawn — the shell is
+  // already running in the main process. Only the first reattached tab is
+  // activated (and thus xterm-opened + fitted); others open on first activation
+  // via activateTermTab -> _attachTerminal. xterm accepts write() before open()
+  // and replays it on open, so the backlog is safe to write to an unattached
+  // tab's terminal.
+  async function _adoptTermTab(ptyId, label, { activate }) {
+    const tab = _buildTermTab(label);
+    tab.ptyId = ptyId;
+    tab.spawned = true;
+    if (activate) activateTermTab(tab.id);
+    let res = null;
+    try { res = await window.electronAPI.terminalAttach(ptyId); } catch (_) {}
+    if (res && res.success && tab.terminal && res.data) {
+      tab.terminal.write(res.data);
+    }
+    if (activate && tab.fitAddon) {
+      tab.fitAddon.fit();
+      const dims = tab.fitAddon.proposeDimensions();
+      // Resize the surviving PTY to the (possibly changed) viewport. Besides
+      // correctness, the resize delivers SIGWINCH which makes full-screen TUIs
+      // (vim/tmux/htop) repaint cleanly over the replayed backlog.
+      if (dims && dims.cols > 0 && dims.rows > 0) {
+        window.electronAPI.terminalResize(ptyId, dims.cols, dims.rows);
+      }
+    }
+    return tab;
+  }
+
   async function initTerminal() {
     if (_termInitialized) {
       const tab = _termTabs.find((t) => t.id === _activeTermTabId);
@@ -7092,7 +7124,19 @@ ${content}
     }, true);
 
     _termInitialized = true;
-    await createTermTab();
+
+    // Reattach to any PTYs that survived a window reload (e.g. the GPU-banner
+    // Reload). Their output buffered in the main process while detached; replay
+    // it and rebind. If none survived, start a fresh terminal as before.
+    let live = null;
+    try { live = await window.electronAPI.terminalList(); } catch (_) {}
+    if (live && live.success && live.tabs && live.tabs.length) {
+      for (let i = 0; i < live.tabs.length; i++) {
+        await _adoptTermTab(live.tabs[i].ptyId, live.tabs[i].label, { activate: i === 0 });
+      }
+    } else {
+      await createTermTab();
+    }
   }
 
   btnTerminalRestart.addEventListener('click', async () => {
