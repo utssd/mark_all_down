@@ -700,6 +700,10 @@ try {
   pty = null;
 }
 const _ptyProcesses = new Map();
+const ptyBuffer = require('./terminal/ptyBuffer');
+// Parallel to _ptyProcesses, keyed by the same ptyId: holds each PTY's recent
+// output ring + attach state so shells survive a renderer reload (reattach).
+const _ptyBuffers = new Map(); // ptyId -> { buf, bufBytes, attached, label }
 
 function killTerminalPty(ptyId) {
   if (ptyId) {
@@ -709,6 +713,7 @@ function killTerminalPty(ptyId) {
       try { proc.destroy(); } catch (_) { /* ignore */ }
       _ptyProcesses.delete(ptyId);
     }
+    _ptyBuffers.delete(ptyId);
     try { _planReleaseTab && _planReleaseTab(ptyId); } catch (_) {}
   } else {
     for (const [id, proc] of _ptyProcesses) {
@@ -716,6 +721,7 @@ function killTerminalPty(ptyId) {
       try { proc.destroy(); } catch (_) { /* ignore */ }
     }
     _ptyProcesses.clear();
+    _ptyBuffers.clear();
   }
 }
 
@@ -1983,15 +1989,21 @@ ipcMain.handle('terminal:spawn', async () => {
     });
 
     _ptyProcesses.set(ptyId, ptyProc);
+    _ptyBuffers.set(ptyId, ptyBuffer.createBufferEntry(null));
 
     ptyProc.onData((data) => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
+      const entry = _ptyBuffers.get(ptyId);
+      if (entry) ptyBuffer.appendToRing(entry, data);
+      // Stream live only while a renderer is attached. While detached (between a
+      // reload starting and the new renderer reattaching) output just buffers.
+      if (entry && entry.attached && mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('terminal:output', { ptyId, data });
       }
     });
 
     ptyProc.onExit(({ exitCode }) => {
       _ptyProcesses.delete(ptyId);
+      _ptyBuffers.delete(ptyId);
       try { ptyProc.destroy(); } catch (_) { /* already destroyed */ }
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('terminal:exit', { ptyId, exitCode });
