@@ -6952,10 +6952,13 @@ ${content}
     tab.attached = true;
   }
 
-  async function createTermTab() {
+  // Build a terminal tab's DOM + xterm instance and register it in _termTabs.
+  // Does NOT spawn or adopt a PTY and does NOT activate — callers wire the PTY
+  // (createTermTab spawns a fresh one; _adoptTermTab binds a surviving one).
+  function _buildTermTab(label) {
     _termTabCounter++;
     const tabId = 'term-' + _termTabCounter;
-    const label = 'Terminal ' + _termTabCounter;
+    const displayLabel = label || ('Terminal ' + _termTabCounter);
 
     const containerEl = document.createElement('div');
     containerEl.className = 'terminal-tab-container';
@@ -6974,7 +6977,7 @@ ${content}
     shelfBracketL.textContent = '⟦';
     const shelfLabelEl = document.createElement('span');
     shelfLabelEl.className = 'terminal-shelf-label';
-    shelfLabelEl.textContent = label;
+    shelfLabelEl.textContent = displayLabel;
     const shelfBracketR = document.createElement('span');
     shelfBracketR.className = 'terminal-shelf-bracket';
     shelfBracketR.textContent = '⟧';
@@ -6988,11 +6991,15 @@ ${content}
     shelfEl.append(shelfDot, shelfBracketL, shelfLabelEl, shelfBracketR, shelfSep, shelfHint);
     containerEl.appendChild(shelfEl);
 
-    const tab = { id: tabId, label, terminal: null, fitAddon: null, searchAddon: null, searchListener: null, webglAddon: null, attached: false, shellEl: null, spawned: false, containerEl, shelfLabelEl, ptyId: null };
+    const tab = { id: tabId, label: displayLabel, terminal: null, fitAddon: null, searchAddon: null, searchListener: null, webglAddon: null, attached: false, shellEl: null, spawned: false, containerEl, shelfLabelEl, ptyId: null };
     _mountTerminal(tab, shellEl);
     _termTabs.push(tab);
+    return tab;
+  }
 
-    activateTermTab(tabId);
+  async function createTermTab() {
+    const tab = _buildTermTab(null);
+    activateTermTab(tab.id);
     await spawnTermTabPty(tab);
   }
 
