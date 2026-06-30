@@ -1083,17 +1083,21 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
   // A renderer reload (GPU-banner Reload button, Ctrl+R, menu reload) rebuilds
-  // the page: the renderer drops its terminal/PTY references and spawns fresh
-  // ones, orphaning the previous PTYs. The renderer's 'beforeunload' no longer
-  // kills PTYs (doing so destroyed live terminals on cancelled external-link
-  // navigations — the preview-link bug), so reap them here instead. Only fire
-  // on a main-frame reload to our own app document (file:/about:blank) — never
-  // on external http(s) navigations, which main.js cancels and routes to the OS
-  // browser and which must NOT tear down terminals.
+  // the page and drops the renderer's terminal references. We DO NOT kill the
+  // PTYs here — doing so loses the user's running work (the GPU-crash banner's
+  // whole purpose is recovery without data loss). Instead mark every PTY
+  // detached so its output buffers in the main process; the rebuilt renderer
+  // calls terminal:list + terminal:attach to reclaim them and replay the
+  // backlog (see initTerminal). PTYs are no longer orphaned because the new
+  // renderer reattaches to the same ptyIds rather than spawning fresh ones.
+  // Authoritative teardown still happens on real quit (before-quit ->
+  // killTerminalPty()). Guard: only main-frame navigations to our own document
+  // (file:/about:blank) are reloads; external http(s) navs are cancelled and
+  // routed to the OS browser and must not touch terminals (the preview-link bug).
   mainWindow.webContents.on('did-start-navigation', (_event, url, _isInPlace, isMainFrame) => {
     if (!isMainFrame) return;
     if (/^https?:/i.test(url)) return;
-    killTerminalPty();
+    for (const entry of _ptyBuffers.values()) entry.attached = false;
   });
 
   mainWindow.webContents.on('did-finish-load', () => {
