@@ -45,3 +45,33 @@ test('GPU process death surfaces a reload banner instead of attempting in-proces
   assert.doesNotMatch(app, /_scheduleTerminalRendererRepair/);
   assert.doesNotMatch(app, /_queueTerminalRendererRepair/);
 });
+
+test('terminals reattach across a renderer reload instead of being killed', () => {
+  const main = readProjectFile('main.js');
+  const preload = readProjectFile('preload.js');
+  const app = readProjectFile('app.js');
+
+  // main.js: the reload (did-start-navigation) handler must DETACH, not kill.
+  const navMatch = main.match(/did-start-navigation[\s\S]*?\n {2}\}\);/);
+  assert.ok(navMatch, 'did-start-navigation handler present');
+  assert.match(navMatch[0], /attached = false/);
+  assert.doesNotMatch(navMatch[0], /killTerminalPty/);
+
+  // main.js: reattach IPC + buffer wiring exist.
+  assert.match(main, /require\('\.\/terminal\/ptyBuffer'\)/);
+  assert.match(main, /ipcMain\.handle\('terminal:list'/);
+  assert.match(main, /ipcMain\.handle\('terminal:attach'/);
+  assert.match(main, /ipcMain\.on\('terminal:setLabel'/);
+  // Output streaming is gated on the per-PTY attached flag.
+  assert.match(main, /entry\.attached && mainWindow/);
+
+  // preload.js: bridges exposed.
+  assert.match(preload, /terminalList:\s*\(\)\s*=>\s*ipcRenderer\.invoke\('terminal:list'\)/);
+  assert.match(preload, /terminalAttach:\s*\(ptyId\)\s*=>\s*ipcRenderer\.invoke\('terminal:attach'/);
+  assert.match(preload, /terminalSetLabel:\s*\(ptyId, label\)\s*=>\s*ipcRenderer\.send\('terminal:setLabel'/);
+
+  // app.js: reattach path present and wired into init.
+  assert.match(app, /async function _adoptTermTab\(/);
+  assert.match(app, /electronAPI\.terminalList\(\)/);
+  assert.match(app, /electronAPI\.terminalAttach\(ptyId\)/);
+});
