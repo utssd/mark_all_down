@@ -101,6 +101,7 @@ Switch to **Editor → Markdown** for a live-preview Markdown editor (CodeMirror
 - `Ctrl+PageUp` / `Ctrl+PageDown` — switch tabs
 - Rename tabs by double-clicking the sidebar label.
 - Open an **SSH tab** for a persistent remote shell — the connection lives for the lifetime of the tab.
+- Shells **survive a window reload** (including the GPU-crash recovery "Reload window"): the PTYs keep running in the main process and the rebuilt window reattaches to them with recent output replayed, so a renderer reload no longer loses running work.
 
 ### Pages / Library
 
@@ -334,6 +335,10 @@ No telemetry, no cloud calls — these windows read Claude Code's local session 
 ---
 
 ## Changelog
+
+### v1.3.0
+
+- Terminal shells now **survive a renderer window reload**. Previously the GPU-process-death banner's "Reload window" action ran `window.location.reload()`, which made `main.js` kill every PTY (`killTerminalPty()` on `did-start-navigation`) — losing the user's running work. PTYs live in the main process and outlive the renderer, so a reload now **detaches** the PTYs (their output buffers in a bounded ~1 MB-per-PTY ring, `terminal/ptyBuffer.js`) and the rebuilt renderer **reattaches** via new `terminal:list` / `terminal:attach` IPC, replaying the buffered backlog into xterm. A per-PTY `attached` flag gates live streaming so the handoff loses no bytes and never double-writes. Tab labels persist across the reload (`terminal:setLabel`), and reattach resizes the PTY to the current viewport (SIGWINCH) so full-screen TUIs (vim/tmux/htop) repaint cleanly. The external-link navigation guard is preserved, and authoritative teardown still happens only on real quit.
 
 ### v1.2.0
 
