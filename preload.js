@@ -77,6 +77,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   terminalResize: (ptyId, cols, rows) => ipcRenderer.send('terminal:resize', { ptyId, cols, rows }),
   onTerminalData: (cb) => ipcRenderer.on('terminal:output', (_e, { ptyId, data }) => cb(ptyId, data)),
   onTerminalExit: (cb) => ipcRenderer.on('terminal:exit', (_e, { ptyId, exitCode }) => cb(ptyId, exitCode)),
+  terminalList: () => ipcRenderer.invoke('terminal:list'),
+  terminalAttach: (ptyId) => ipcRenderer.invoke('terminal:attach', { ptyId }),
+  terminalSetLabel: (ptyId, label) => ipcRenderer.send('terminal:setLabel', { ptyId, label }),
   terminalSaveClipboardImage: () => ipcRenderer.invoke('terminal:saveClipboardImage'),
   onGpuProcessGone: (cb) => ipcRenderer.on('gpu:process-gone', (_e, details) => cb(details)),
 
