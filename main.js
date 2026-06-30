@@ -2035,6 +2035,35 @@ ipcMain.on('terminal:resize', (_event, { ptyId, cols, rows }) => {
   if (proc) proc.resize(cols, rows);
 });
 
+// ── Terminal reattach (survive renderer reload) ─────────────────────────────
+
+// List PTYs that are still alive so a freshly-(re)loaded renderer can rebuild
+// tabs bound to the surviving shells instead of spawning new ones.
+ipcMain.handle('terminal:list', async () => {
+  const tabs = [];
+  for (const [ptyId, entry] of _ptyBuffers) tabs.push({ ptyId, label: entry.label });
+  return { success: true, tabs };
+});
+
+// Attach a renderer tab to a live PTY: return its buffered backlog (to be
+// replayed into xterm) and resume live streaming. The snapshot+clear in
+// drainBuffer is synchronous, so no onData chunk can interleave and be
+// delivered both in the backlog and as a live event.
+ipcMain.handle('terminal:attach', async (_event, { ptyId }) => {
+  const entry = _ptyBuffers.get(ptyId);
+  if (!entry) return { success: false, error: 'unknown ptyId' };
+  const data = ptyBuffer.drainBuffer(entry);
+  entry.attached = true;
+  return { success: true, data };
+});
+
+// Persist a tab's label so it survives a reload. Labels live in the renderer,
+// which is rebuilt on reload; reattach restores them from here.
+ipcMain.on('terminal:setLabel', (_event, { ptyId, label }) => {
+  const entry = _ptyBuffers.get(ptyId);
+  if (entry) entry.label = label;
+});
+
 // Write the clipboard image (if any) to a temp PNG and return its path.
 // Used by the renderer when the user pastes into the terminal while an image
 // is on the clipboard — xterm's default paste pipeline reads text/plain only,
