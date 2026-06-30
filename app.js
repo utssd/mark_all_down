@@ -5827,7 +5827,9 @@ ${content}
   }
 
   document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+    // Ctrl/Cmd+Shift+F opens the find bar. Shift is required so plain Ctrl+F
+    // stays free for editors like vim (^F) running in the terminal tab.
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'KeyF') {
       e.preventDefault();
       openFindBar();
     }
@@ -6601,8 +6603,9 @@ ${content}
     // here just prevents xterm from processing these keys (avoids double-firing).
     if (e[MOD_KEY_EVENT] && e.shiftKey && (e.code === 'KeyT' || e.code === 'KeyW')) return false;
     if (e[MOD_KEY_EVENT] && (e.code === 'PageDown' || e.code === 'PageUp')) return false;
-    // Cmd/Ctrl+F: open find bar instead of sending ^F to the PTY
-    if (e[MOD_KEY_EVENT] && !e.shiftKey && !e.altKey && e.code === 'KeyF') {
+    // Cmd/Ctrl+Shift+F: open find bar. Plain Cmd/Ctrl+F is intentionally left
+    // to pass through to the PTY so terminal apps (e.g. vim ^F) keep that key.
+    if (e[MOD_KEY_EVENT] && e.shiftKey && !e.altKey && e.code === 'KeyF') {
       e.preventDefault();
       openFindBar();
       return false;

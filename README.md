@@ -78,7 +78,7 @@ Open any Markdown, PDF, or text file with **File → Open Local** (`Ctrl+O`) or 
 - PDFs render page-by-page (canvas) with zoom and keyboard paging.
 - `.json`, `.yaml`, `.py`, `.js`, `.ts`, `.xml`, `.csv`, `.log`, `.sh`, `.env`, and friends open as monospace text.
 - Toggle **Settings → General → Strip front matter** to hide YAML/TOML headers from rendered Markdown.
-- **Find** in the current doc with `Ctrl+F`.
+- **Find** in the current doc with `Ctrl+Shift+F` (plain `Ctrl+F` is left free for terminal apps like vim).
 
 ### Markdown Editor
 
@@ -319,7 +319,7 @@ No telemetry, no cloud calls — these windows read Claude Code's local session 
 | `Ctrl+O`          | Open local file       |
 | `Ctrl+Shift+O`    | Open File by Path     |
 | `Ctrl+S`          | Save                  |
-| `Ctrl+F`          | Find in document      |
+| `Ctrl+Shift+F`    | Find in document      |
 | `Ctrl+Shift+T`    | New terminal tab      |
 | `Ctrl+Shift+W`    | Close terminal tab    |
 | `Ctrl+PageUp/Dn`  | Switch tabs           |

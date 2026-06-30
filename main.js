@@ -1014,7 +1014,7 @@ function createWindow() {
         { type: 'separator' },
         {
           label: 'Find',
-          accelerator: 'CmdOrCtrl+F',
+          accelerator: 'CmdOrCtrl+Shift+F',
           click: () => mainWindow.webContents.send('menu:find'),
         },
       ],
