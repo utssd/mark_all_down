@@ -6738,6 +6738,9 @@ ${content}
       if (!tab.attached) _attachTerminal(tab);
       if (tab.fitAddon) tab.fitAddon.fit();
       if (tab.terminal) tab.terminal.focus();
+      // A reattached tab that wasn't the active one on reload defers its repaint
+      // until it first becomes visible here (xterm is now open + fitted).
+      if (tab.needsWinchNudge) _winchNudgePty(tab);
       btnTerminalRestart.classList.toggle('hidden', tab.spawned);
     }
     renderTerminalSidebar();
@@ -7014,6 +7017,28 @@ ${content}
     await spawnTermTabPty(tab);
   }
 
+  // Force a SIGWINCH so a full-screen TUI (tmux, vim, htop, Claude Code) repaints
+  // itself after reattach. Replaying raw backlog bytes cannot reconstruct an
+  // alternate-screen app — the correct screen lives in the surviving process's
+  // own memory, and only a resize signal makes it redraw. The kernel delivers
+  // SIGWINCH ONLY when the winsize actually changes (verified: a same-size
+  // TIOCSWINSZ is a silent no-op), so if the window size is unchanged across the
+  // reload, a plain resize-to-fit sends no signal and the app stays garbled.
+  // Nudge to cols-1 then back to cols on the next tick, which guarantees the
+  // signal regardless of whether the size changed. Harmless for plain shells
+  // (a shell has nothing to repaint). Idempotent via tab.needsWinchNudge.
+  function _winchNudgePty(tab) {
+    tab.needsWinchNudge = false;
+    if (!tab.ptyId || !tab.fitAddon) return;
+    const dims = tab.fitAddon.proposeDimensions();
+    if (!dims || !(dims.cols > 1) || !(dims.rows > 0)) return;
+    const { cols, rows } = dims;
+    window.electronAPI.terminalResize(tab.ptyId, cols - 1, rows);
+    setTimeout(() => {
+      if (tab.ptyId) window.electronAPI.terminalResize(tab.ptyId, cols, rows);
+    }, 50);
+  }
+
   // Rebuild a tab bound to a PTY that survived a window reload, replaying its
   // buffered output. Unlike createTermTab it does NOT spawn — the shell is
   // already running in the main process. Only the first reattached tab is
@@ -7033,13 +7058,13 @@ ${content}
     }
     if (activate && tab.fitAddon) {
       tab.fitAddon.fit();
-      const dims = tab.fitAddon.proposeDimensions();
-      // Resize the surviving PTY to the (possibly changed) viewport. Besides
-      // correctness, the resize delivers SIGWINCH which makes full-screen TUIs
-      // (vim/tmux/htop) repaint cleanly over the replayed backlog.
-      if (dims && dims.cols > 0 && dims.rows > 0) {
-        window.electronAPI.terminalResize(ptyId, dims.cols, dims.rows);
-      }
+      // Force the surviving shell/TUI to repaint (SIGWINCH nudge). See
+      // _winchNudgePty for why a plain resize-to-fit is not enough.
+      _winchNudgePty(tab);
+    } else {
+      // Non-active reattached tab: xterm isn't open yet (deferred to first
+      // activation). Repaint it when the user first switches to it.
+      tab.needsWinchNudge = true;
     }
     return tab;
   }
@@ -7211,6 +7236,12 @@ ${content}
       for (let i = 0; i < live.tabs.length; i++) {
         await _adoptTermTab(live.tabs[i].ptyId, live.tabs[i].label, { activate: i === 0 });
       }
+      // activateTermTab only re-rendered the sidebar for the one activated tab,
+      // so the other reattached tabs exist in _termTabs but aren't listed yet.
+      // Render once now so every surviving tab shows immediately (otherwise they
+      // only appear the next time something else triggers a sidebar render, e.g.
+      // adding a tab — the "lost tabs reappear" symptom).
+      renderTerminalSidebar();
     } else {
       await createTermTab();
     }
